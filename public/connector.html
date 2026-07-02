@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  </head>
+  <body>
+    <script>
+      var ICON_WHITE =
+        "https://easy-approve-beta.vercel.app/images/icon-white.svg";
+      var ICON_BLACK =
+        "https://easy-approve-beta.vercel.app/images/icon-black.svg";
+
+      window.TrelloPowerUp.initialize({
+        "board-buttons": function (t, opts) {
+          return [
+            {
+              icon: { dark: ICON_WHITE, light: ICON_BLACK },
+              text: "Approvals",
+              callback: function (t) {
+                return t.popup({
+                  title: "Approvals",
+                  url: "./popup.html",
+                  height: 220,
+                });
+              },
+            },
+          ];
+        },
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  </head>
+  <body>
+    <div style="text-align: center; padding: 16px">
+      <p>Request approvals from your board mates.</p>
+      <div id="status">✅</div>
+      <p>To get started, authorize this Power-Up with Trello.</p>
+      <button id="authBtn">Authorize Approvals</button>
+    </div>
+    <script>
+      var t = window.TrelloPowerUp.iframe();
+
+      document.getElementById("authBtn").onclick = function () {
+        t.get("member", "private", "token").then(function (token) {
+          if (token) {
+            showSuccess();
+            return;
+          }
+          t.popup({
+            type: "oauth",
+            title: "Authorize",
+            url:
+              "https://trello.com/1/authorize?expiration=never&name=Easy+Approve&scope=read,write&response_type=token&key=YOUR_API_KEY&return_url=" +
+              encodeURIComponent(location.origin + "/oauth-return.html"),
+          }).then(function () {
+            showSuccess();
+          });
+        });
+      };
+
+      function showSuccess() {
+        document.body.innerHTML =
+          '<div style="text-align:center;padding:24px;">✅<br/>Authorized successfully!</div>';
+      }
+    </script>
+  </body>
+</html>
