@@ -28,9 +28,8 @@
           ];
         },
 
-        "card-badges": function (t, opts) {
+        "card-detail-badges": function (t, opts) {
           return ApprovalsShared.fetchCardRequest(t).then(function (request) {
-            // No request sent yet — show the clickable "Request for Approval" badge
             if (
               !request ||
               !request.approvers ||
@@ -38,8 +37,8 @@
             ) {
               return [
                 {
+                  title: "Approvals",
                   text: "Request for Approval",
-                  color: null,
                   callback: function (t) {
                     return t.popup({
                       title: "Approvals",
@@ -51,7 +50,6 @@
               ];
             }
 
-            // A request exists — read-only status badge, no callback
             return t.member("id").then(function (member) {
               var overall = ApprovalsShared.getOverallStatus(request);
               var approved = ApprovalsShared.approvedCount(request);
@@ -61,16 +59,25 @@
               });
 
               if (overall === "declined") {
-                return [{ text: "Declined", color: "red" }];
+                return [{ title: "Approvals", text: "Declined", color: "red" }];
               }
               if (overall === "approved") {
-                return [{ text: "Approved", color: "green" }];
+                return [
+                  { title: "Approvals", text: "Approved", color: "green" },
+                ];
               }
               if (mine && mine.status === "pending") {
-                return [{ text: "🔔 Pending your approval", color: "purple" }];
+                return [
+                  {
+                    title: "Approvals",
+                    text: "🔔 Pending your approval",
+                    color: "purple",
+                  },
+                ];
               }
               return [
                 {
+                  title: "Approvals",
                   text: "Pending (" + approved + "/" + total + ")",
                   color: "purple",
                 },
