@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="./approvals.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: #22272b;
+        color: #b6c2cf;
+      }
+      .search-wrap {
+        padding: 12px;
+      }
+      input.search {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid #3d444d;
+        background: #1d2125;
+        color: #b6c2cf;
+        font-size: 13px;
+        outline: none;
+      }
+      input.search:focus {
+        border-color: #579dff;
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #8c9bab;
+        padding: 4px 12px 6px;
+      }
+      .member-list {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .member-row {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        gap: 10px;
+      }
+      .member-row:hover {
+        background: #282e33;
+      }
+      .avatar-img,
+      .avatar-fallback {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .avatar-fallback {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .member-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .member-name {
+        font-size: 13px;
+        color: #fff;
+        font-weight: 500;
+      }
+      .member-username {
+        font-size: 12px;
+        color: #8c9bab;
+      }
+      .check {
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .check svg {
+        display: none;
+        width: 16px;
+        height: 16px;
+      }
+      .member-row.selected .check svg {
+        display: block;
+      }
+      .footer {
+        position: sticky;
+        bottom: 0;
+        padding: 10px 12px;
+        background: #22272b;
+        border-top: 1px solid #3d444d;
+        display: none;
+      }
+      .footer.show {
+        display: block;
+      }
+      .send-btn {
+        width: 100%;
+        appearance: none;
+        border: none;
+        padding: 9px;
+        border-radius: 8px;
+        background: #579dff;
+        color: #091e42;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .send-btn:hover {
+        background: #85b8ff;
+      }
+      .empty {
+        padding: 20px 12px;
+        text-align: center;
+        font-size: 13px;
+        color: #8c9bab;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="search-wrap">
+      <input
+        class="search"
+        id="searchInput"
+        placeholder="Search for a member..."
+      />
+    </div>
+    <div class="section-label">BOARD MEMBERS</div>
+    <div class="member-list" id="memberList"></div>
+    <div class="footer" id="footer">
+      <button class="send-btn" id="sendBtn">Send Request</button>
+    </div>
+
+    <script>
+      var t = window.TrelloPowerUp.iframe();
+      var allMembers = [];
+      var selectedIds = {};
+
+      function checkmarkSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#4bce97" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+
+      function renderList(filter) {
+        var listEl = document.getElementById("memberList");
+        var query = (filter || "").toLowerCase();
+        var filtered = allMembers.filter(function (m) {
+          return (
+            !query ||
+            (m.fullName && m.fullName.toLowerCase().indexOf(query) > -1) ||
+            (m.username && m.username.toLowerCase().indexOf(query) > -1)
+          );
+        });
+
+        if (filtered.length === 0) {
+          listEl.innerHTML = '<div class="empty">No members found</div>';
+          return;
+        }
+
+        listEl.innerHTML = filtered
+          .map(function (m) {
+            var selected = !!selectedIds[m.id];
+            return (
+              '<div class="member-row' +
+              (selected ? " selected" : "") +
+              '" data-id="' +
+              m.id +
+              '">' +
+              ApprovalsShared.avatarHtml(m) +
+              '<div class="member-info">' +
+              '<div class="member-name">' +
+              m.fullName +
+              "</div>" +
+              '<div class="member-username">@' +
+              m.username +
+              "</div>" +
+              "</div>" +
+              '<div class="check">' +
+              checkmarkSvg() +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+
+        Array.prototype.forEach.call(
+          listEl.querySelectorAll(".member-row"),
+          function (row) {
+            row.addEventListener("click", function () {
+              var id = row.getAttribute("data-id");
+              if (selectedIds[id]) {
+                delete selectedIds[id];
+              } else {
+                selectedIds[id] = true;
+              }
+              updateFooter();
+              renderList(document.getElementById("searchInput").value);
+            });
+          },
+        );
+      }
+
+      function updateFooter() {
+        var count = Object.keys(selectedIds).length;
+        var footer = document.getElementById("footer");
+        var btn = document.getElementById("sendBtn");
+        if (count > 0) {
+          footer.classList.add("show");
+          btn.textContent = "Send Request (" + count + ")";
+        } else {
+          footer.classList.remove("show");
+        }
+        t.sizeTo("body");
+      }
+
+      document
+        .getElementById("searchInput")
+        .addEventListener("input", function (e) {
+          renderList(e.target.value);
+        });
+
+      document.getElementById("sendBtn").addEventListener("click", function () {
+        var chosenIds = Object.keys(selectedIds);
+        if (chosenIds.length === 0) return;
+
+        t.member("id", "fullName")
+          .then(function (me) {
+            var approvers = allMembers
+              .filter(function (m) {
+                return selectedIds[m.id];
+              })
+              .map(function (m) {
+                return {
+                  id: m.id,
+                  fullName: m.fullName,
+                  username: m.username,
+                  avatarUrl: m.avatar || null,
+                  status: "pending",
+                  respondedAt: null,
+                };
+              });
+
+            var request = {
+              requesterId: me.id,
+              requesterName: me.fullName,
+              createdAt: Date.now(),
+              approvers: approvers,
+            };
+
+            return ApprovalsShared.saveCardRequest(t, request);
+          })
+          .then(function () {
+            return t.closePopup();
+          });
+      });
+
+      // Load board members
+      t.board("members").then(function (board) {
+        allMembers = board.members || [];
+        renderList("");
+        t.sizeTo("body");
+      });
+    </script>
+  </body>
+</html>
