@@ -130,7 +130,7 @@
         </div>
         <h2>Request approvals from your board mates</h2>
         <p class="desc">To get started, authorize this Power-Up with Trello.</p>
-        <button class="btn" id="authBtn">Authorize Approvals</button>
+        <button class="btn" id="authBtn">Authorize Easy Approve</button>
         <div class="status" id="statusMsg"></div>
       </div>
 
@@ -211,7 +211,7 @@
           })
           .catch(function (err) {
             authBtn.disabled = false;
-            authBtn.textContent = "Authorize Approvals";
+            authBtn.textContent = "Authorize Easy Approve";
             setStatus(
               "Authorization was cancelled or failed. Please try again.",
               "error",
