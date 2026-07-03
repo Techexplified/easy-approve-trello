@@ -1,7 +1,7 @@
 {
   "author": "your-name",
   "name": "Easy Approve",
-  "key": "your-trello-api-key",
-  "capabilities": ["board-buttons"],
+  "key": "be0af9c0de485c191cd377fdcb42e793",
+  "capabilities": ["board-buttons", "card-badges", "card-back-section"],
   "connectorUrl": "https://easy-approve-beta.vercel.app/connector.html"
 }
