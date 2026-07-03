@@ -86,24 +86,24 @@
           });
         },
 
-        "card-back-section": function (t, opts) {
-          return ApprovalsShared.fetchCardRequest(t).then(function (request) {
-            // No request on this card — don't show the section at all
-            if (!request) {
-              return t.NotHandled();
-            }
+        // "card-back-section": function (t, opts) {
+        //   return ApprovalsShared.fetchCardRequest(t).then(function (request) {
+        //     // No request on this card — don't show the section at all
+        //     if (!request) {
+        //       return t.NotHandled();
+        //     }
 
-            return {
-              title: "Approvals",
-              icon: ICON_BLACK,
-              content: {
-                type: "iframe",
-                url: t.signUrl("./card-back-section.html"),
-                height: 200,
-              },
-            };
-          });
-        },
+        //     return {
+        //       title: "Approvals",
+        //       icon: ICON_BLACK,
+        //       content: {
+        //         type: "iframe",
+        //         url: t.signUrl("./card-back-section.html"),
+        //         height: 200,
+        //       },
+        //     };
+        //   });
+        // },
       });
     </script>
   </body>
