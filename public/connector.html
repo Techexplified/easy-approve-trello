@@ -86,6 +86,43 @@
           });
         },
 
+        "card-badges": function (t, opts) {
+          return ApprovalsShared.fetchCardRequest(t).then(function (request) {
+            if (
+              !request ||
+              !request.approvers ||
+              request.approvers.length === 0
+            ) {
+              return [];
+            }
+
+            return t.member("id").then(function (member) {
+              var overall = ApprovalsShared.getOverallStatus(request);
+              var approved = ApprovalsShared.approvedCount(request);
+              var total = request.approvers.length;
+              var mine = request.approvers.find(function (a) {
+                return a.id === member.id;
+              });
+
+              if (overall === "declined") {
+                return [{ text: "Declined", color: "red" }];
+              }
+              if (overall === "approved") {
+                return [{ text: "Approved", color: "green" }];
+              }
+              if (mine && mine.status === "pending") {
+                return [{ text: "🔔 Pending your approval", color: "purple" }];
+              }
+              return [
+                {
+                  text: "Pending (" + approved + "/" + total + ")",
+                  color: "purple",
+                },
+              ];
+            });
+          });
+        },
+
         "card-back-section": function (t, opts) {
           return ApprovalsShared.fetchCardRequest(t).then(function (request) {
             // No request on this card — don't show the section at all
