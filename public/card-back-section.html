@@ -232,7 +232,7 @@
         Array.prototype.forEach.call(
           contentEl.querySelectorAll(".action-btn"),
           function (btn) {
-            btn.addEventListener("click", function () {
+            btn.addEventListener("click", function (e) {
               var action = btn.getAttribute("data-action");
               var id = btn.getAttribute("data-id");
 
@@ -241,14 +241,19 @@
                 // explaining why they're declining before it's recorded.
                 t.popup({
                   title: "Decline Request",
-                  url: "./decline-reason.html",
+                  url:
+                    "./decline-reason.html?memberId=" + encodeURIComponent(id),
                   height: 230,
-                  args: { memberId: id },
-                }).then(function () {
-                  // Refresh once the popup closes, since the decline (and
-                  // any comment) happens inside decline-reason.html.
-                  return ApprovalsShared.fetchCardRequest(t).then(render);
-                });
+                  mouseEvent: e,
+                })
+                  .then(function () {
+                    // Refresh once the popup closes, since the decline (and
+                    // any comment) happens inside decline-reason.html.
+                    return ApprovalsShared.fetchCardRequest(t).then(render);
+                  })
+                  .catch(function (err) {
+                    console.error("Decline popup failed:", err);
+                  });
               } else {
                 respondToRequest(request, id, action);
               }

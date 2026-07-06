@@ -104,7 +104,12 @@
       // Must match the key used in popup.html
       var API_KEY = "be0af9c0de485c191cd377fdcb42e793";
 
-      var memberId = t.arg("memberId");
+      function getQueryParam(name) {
+        var params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+
+      var memberId = getQueryParam("memberId");
       var textarea = document.getElementById("reason");
       var submitBtn = document.getElementById("submitBtn");
       var skipBtn = document.getElementById("skipBtn");
