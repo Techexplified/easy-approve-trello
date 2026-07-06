@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="./approvals.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: #1d2125;
+        color: #b6c2cf;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #9fadbc;
+        margin-bottom: 6px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 90px;
+        resize: vertical;
+        border-radius: 6px;
+        border: 1px solid #3d444d;
+        background: #282e33;
+        color: #fff;
+        font-size: 13px;
+        font-family: inherit;
+        padding: 8px 10px;
+        outline: none;
+      }
+      textarea:focus {
+        border-color: #579dff;
+      }
+      .btn-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        flex: 1;
+        padding: 9px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .btn-submit {
+        background: #1c3829;
+        color: #4bce97;
+      }
+      .btn-submit:hover:not(:disabled) {
+        background: #204b30;
+      }
+      .btn-submit:disabled {
+        background: #2c333a;
+        color: #5a6773;
+        cursor: default;
+      }
+      .btn-skip {
+        background: #3d1f1f;
+        color: #f87168;
+      }
+      .btn-skip:hover {
+        background: #4a2323;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        min-height: 14px;
+      }
+      .status.error {
+        color: #f87168;
+      }
+    </style>
+  </head>
+  <body>
+    <label for="reason">Reason for declining (optional)</label>
+    <textarea
+      id="reason"
+      placeholder="Let them know why you're declining..."
+    ></textarea>
+    <div class="btn-row">
+      <button class="btn btn-submit" id="submitBtn" disabled>Submit</button>
+      <button class="btn btn-skip" id="skipBtn">
+        Submit without a comment
+      </button>
+    </div>
+    <div class="status" id="statusMsg"></div>
+
+    <script>
+      var t = window.TrelloPowerUp.iframe();
+
+      // Must match the key used in popup.html
+      var API_KEY = "be0af9c0de485c191cd377fdcb42e793";
+
+      var memberId = t.arg("memberId");
+      var textarea = document.getElementById("reason");
+      var submitBtn = document.getElementById("submitBtn");
+      var skipBtn = document.getElementById("skipBtn");
+      var statusMsg = document.getElementById("statusMsg");
+
+      textarea.addEventListener("input", function () {
+        submitBtn.disabled = textarea.value.trim().length === 0;
+      });
+
+      function setStatus(text, type) {
+        statusMsg.textContent = text || "";
+        statusMsg.className = "status" + (type ? " " + type : "");
+      }
+
+      function setBusy(busy) {
+        submitBtn.disabled = busy || textarea.value.trim().length === 0;
+        skipBtn.disabled = busy;
+        textarea.disabled = busy;
+      }
+
+      function declineRequest() {
+        return ApprovalsShared.fetchCardRequest(t).then(function (request) {
+          var updated = JSON.parse(JSON.stringify(request));
+          updated.approvers = updated.approvers.map(function (a) {
+            if (a.id === memberId) {
+              a.status = "declined";
+              a.respondedAt = Date.now();
+            }
+            return a;
+          });
+          return ApprovalsShared.saveCardRequest(t, updated);
+        });
+      }
+
+      function postComment(text) {
+        return Promise.all([
+          t.card("id"),
+          t.get("member", "private", "token"),
+        ]).then(function (results) {
+          var cardId = results[0].id;
+          var token = results[1];
+
+          if (!token) {
+            // Not authorized to post on the member's behalf — skip the
+            // comment but still record the decline so the flow isn't blocked.
+            return;
+          }
+
+          var url =
+            "https://api.trello.com/1/cards/" +
+            encodeURIComponent(cardId) +
+            "/actions/comments" +
+            "?key=" +
+            API_KEY +
+            "&token=" +
+            encodeURIComponent(token) +
+            "&text=" +
+            encodeURIComponent(text);
+
+          return fetch(url, { method: "POST" }).then(function (res) {
+            if (!res.ok) {
+              throw new Error("Failed to post comment (" + res.status + ")");
+            }
+          });
+        });
+      }
+
+      submitBtn.addEventListener("click", function () {
+        var text = textarea.value.trim();
+        if (!text) return;
+
+        setBusy(true);
+        setStatus("");
+
+        postComment(text)
+          .then(declineRequest)
+          .then(function () {
+            t.closePopup();
+          })
+          .catch(function (err) {
+            setBusy(false);
+            setStatus("Couldn't post your comment. Please try again.", "error");
+          });
+      });
+
+      skipBtn.addEventListener("click", function () {
+        setBusy(true);
+        setStatus("");
+
+        declineRequest()
+          .then(function () {
+            t.closePopup();
+          })
+          .catch(function () {
+            setBusy(false);
+            setStatus("Something went wrong. Please try again.", "error");
+          });
+      });
+
+      t.sizeTo("body");
+    </script>
+  </body>
+</html>

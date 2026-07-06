@@ -235,7 +235,23 @@
             btn.addEventListener("click", function () {
               var action = btn.getAttribute("data-action");
               var id = btn.getAttribute("data-id");
-              respondToRequest(request, id, action);
+
+              if (action === "declined") {
+                // Show a popup so the user can optionally leave a comment
+                // explaining why they're declining before it's recorded.
+                t.popup({
+                  title: "Decline Request",
+                  url: "./decline-reason.html",
+                  height: 230,
+                  args: { memberId: id },
+                }).then(function () {
+                  // Refresh once the popup closes, since the decline (and
+                  // any comment) happens inside decline-reason.html.
+                  return ApprovalsShared.fetchCardRequest(t).then(render);
+                });
+              } else {
+                respondToRequest(request, id, action);
+              }
             });
           },
         );
