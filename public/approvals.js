@@ -120,7 +120,7 @@ var ApprovalsShared = (function () {
     // overlapping.
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
-      '<svg x="0" y="10" width="24" height="24" viewBox="0 0 24 24">' +
+      '<svg x="0" y="10" width="28" height="28" viewBox="0 0 24 24">' +
       iconSvgMarkup +
       "</svg>" +
       '<circle cx="25" cy="7" r="13" fill="#ffffff" />' +
