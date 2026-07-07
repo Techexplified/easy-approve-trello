@@ -107,17 +107,25 @@ var ApprovalsShared = (function () {
     if (!count) return iconSvgMarkup; // caller passes back a real URL when count is 0
 
     var display = count > 9 ? "9+" : String(count);
-    var fontSize = display.length > 1 ? 10 : 12;
+    var fontSize = display.length > 1 ? 13 : 15;
 
-    // Strip any xml/doctype prolog and outer <svg> wrapper isn't needed —
-    // just nest the fetched icon as a <g>/<svg> inside our composite one.
+    // Badge is intentionally large relative to the canvas — Trello renders
+    // this whole icon quite small in the board-buttons bar, so a
+    // "realistically proportioned" badge ends up nearly invisible. A white
+    // ring around the badge also helps it read as a distinct element
+    // against the dark toolbar icon color rather than blending into it.
+    //
+    // Shrink the base icon slightly (and shift it to the bottom-left) to
+    // make room for a bigger badge in the top-right without the two
+    // overlapping.
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
-      '<svg x="0" y="6" width="24" height="24" viewBox="0 0 24 24">' +
+      '<svg x="0" y="10" width="20" height="20" viewBox="0 0 24 24">' +
       iconSvgMarkup +
       "</svg>" +
-      '<circle cx="24" cy="8" r="8" fill="#eb5a46" />' +
-      '<text x="24" y="9" text-anchor="middle" dominant-baseline="central" ' +
+      '<circle cx="23" cy="9" r="11" fill="#ffffff" />' +
+      '<circle cx="23" cy="9" r="9.5" fill="#eb5a46" />' +
+      '<text x="23" y="10" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
       '" font-weight="700" fill="#ffffff">' +
