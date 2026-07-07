@@ -107,7 +107,7 @@ var ApprovalsShared = (function () {
     if (!count) return iconSvgMarkup; // caller passes back a real URL when count is 0
 
     var display = count > 9 ? "9+" : String(count);
-    var fontSize = display.length > 1 ? 13 : 15;
+    var fontSize = display.length > 1 ? 15 : 18;
 
     // Badge is intentionally large relative to the canvas — Trello renders
     // this whole icon quite small in the board-buttons bar, so a
@@ -120,11 +120,11 @@ var ApprovalsShared = (function () {
     // overlapping.
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
-      '<svg x="0" y="10" width="20" height="20" viewBox="0 0 24 24">' +
+      '<svg x="0" y="10" width="24" height="24" viewBox="0 0 24 24">' +
       iconSvgMarkup +
       "</svg>" +
-      '<circle cx="23" cy="9" r="11" fill="#ffffff" />' +
-      '<circle cx="23" cy="9" r="9.5" fill="#eb5a46" />' +
+      '<circle cx="25" cy="7" r="13" fill="#ffffff" />' +
+      '<circle cx="25" cy="7" r="11.5" fill="#eb5a46" />' +
       '<text x="23" y="10" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
