@@ -89,7 +89,9 @@ var ApprovalsShared = (function () {
         return;
       }
 
-      var request = parsed && parsed.shared && parsed.shared.approvalRequest;
+      var request =
+        (parsed && parsed.approvalRequest) ||
+        (parsed && parsed.shared && parsed.shared.approvalRequest);
       if (!request || !request.approvers) return;
 
       var mine = request.approvers.some(function (a) {
