@@ -11,21 +11,72 @@
       var ICON_BLACK =
         "https://easy-approve-beta.vercel.app/images/icon-black.svg";
 
+      // Must match the API_KEY used in popup.html / decline-reason.html
+      var API_KEY = "be0af9c0de485c191cd377fdcb42e793";
+      // From https://trello.com/power-ups/admin → your Power-Up → "API" tab
+      var PLUGIN_ID = "6a468ccfcafdf3b68af7fa8f";
+
       window.TrelloPowerUp.initialize({
         "board-buttons": function (t, opts) {
-          return [
-            {
-              icon: { dark: ICON_WHITE, light: ICON_BLACK },
-              text: "Easy Approve",
-              callback: function (t) {
-                return t.popup({
-                  title: "Easy Approve",
-                  url: "./popup.html",
-                  height: 220,
-                });
+          function buildButton(iconDark, iconLight) {
+            return [
+              {
+                icon: { dark: iconDark, light: iconLight },
+                text: "Easy Approve",
+                callback: function (t) {
+                  return t.popup({
+                    title: "Easy Approve",
+                    url: "./popup.html",
+                    height: 220,
+                  });
+                },
               },
-            },
-          ];
+            ];
+          }
+
+          return Promise.all([
+            t.board("id"),
+            t.member("id"),
+            t.get("member", "private", "token"),
+          ]).then(function (results) {
+            var boardId = results[0].id;
+            var memberId = results[1].id;
+            var token = results[2];
+
+            if (!token) {
+              // Not authorized yet — no way to fetch board cards, show plain icon.
+              return buildButton(ICON_WHITE, ICON_BLACK);
+            }
+
+            var url =
+              "https://api.trello.com/1/boards/" +
+              boardId +
+              "/cards?pluginData=true&fields=id&key=" +
+              API_KEY +
+              "&token=" +
+              encodeURIComponent(token);
+
+            return fetch(url)
+              .then(function (res) {
+                if (!res.ok) throw new Error("Failed to fetch board cards");
+                return res.json();
+              })
+              .then(function (cards) {
+                var count = ApprovalsShared.countPendingForMember(
+                  cards,
+                  memberId,
+                  PLUGIN_ID,
+                );
+                return buildButton(
+                  ApprovalsShared.iconWithBadge(ICON_WHITE, count),
+                  ApprovalsShared.iconWithBadge(ICON_BLACK, count),
+                );
+              })
+              .catch(function (err) {
+                console.error("Easy Approve: badge count failed", err);
+                return buildButton(ICON_WHITE, ICON_BLACK);
+              });
+          });
         },
 
         "card-detail-badges": function (t, opts) {

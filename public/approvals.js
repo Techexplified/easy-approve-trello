@@ -70,6 +70,61 @@ var ApprovalsShared = (function () {
     return t.set("card", "shared", "approvalRequest", request);
   }
 
+  function countPendingForMember(cards, memberId, pluginId) {
+    if (!cards || !memberId || !pluginId) return 0;
+    var count = 0;
+
+    cards.forEach(function (card) {
+      if (!card.pluginData) return;
+
+      var entry = card.pluginData.find(function (pd) {
+        return pd.idPlugin === pluginId;
+      });
+      if (!entry) return;
+
+      var parsed;
+      try {
+        parsed = JSON.parse(entry.value);
+      } catch (e) {
+        return;
+      }
+
+      var request = parsed && parsed.shared && parsed.shared.approvalRequest;
+      if (!request || !request.approvers) return;
+
+      var mine = request.approvers.some(function (a) {
+        return a.id === memberId && a.status === "pending";
+      });
+      if (mine) count += 1;
+    });
+
+    return count;
+  }
+
+  function iconWithBadge(iconUrl, count) {
+    if (!count) return iconUrl;
+
+    var display = count > 9 ? "9+" : String(count);
+    var fontSize = display.length > 1 ? 10 : 12;
+
+    var svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
+      '<image href="' +
+      iconUrl +
+      '" x="0" y="6" width="24" height="24" />' +
+      '<circle cx="24" cy="8" r="8" fill="#eb5a46" />' +
+      '<text x="24" y="9" text-anchor="middle" dominant-baseline="central" ' +
+      'font-family="Helvetica, Arial, sans-serif" font-size="' +
+      fontSize +
+      '" ' +
+      'font-weight="700" fill="#ffffff">' +
+      display +
+      "</text>" +
+      "</svg>";
+
+    return "data:image/svg+xml;base64," + btoa(svg);
+  }
+
   return {
     getOverallStatus: getOverallStatus,
     approvedCount: approvedCount,
@@ -77,5 +132,7 @@ var ApprovalsShared = (function () {
     avatarHtml: avatarHtml,
     fetchCardRequest: fetchCardRequest,
     saveCardRequest: saveCardRequest,
+    countPendingForMember: countPendingForMember,
+    iconWithBadge: iconWithBadge,
   };
 })();
