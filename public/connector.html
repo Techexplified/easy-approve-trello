@@ -16,6 +16,46 @@
       // From https://trello.com/power-ups/admin → your Power-Up → "API" tab
       var PLUGIN_ID = "6a468ccfcafdf3b68af7fa8f";
 
+      // ---------------------------------------------------------------
+      // Fix for badge icons not rendering:
+      //
+      // ApprovalsShared.iconWithBadge() builds a composite SVG (base icon
+      // + red count circle) and serializes it into a data: URI. Previously
+      // that composite SVG contained an <image href="https://..."> pointing
+      // at an external URL. Once an SVG is loaded via a data: URI it has an
+      // opaque/unique origin, and browsers block <image>/<use> elements
+      // inside it from fetching external cross-origin resources. That
+      // fetch was silently failing, producing the "broken image" glyph
+      // you saw next to the (correctly rendered, since it's plain inline
+      // SVG) red count badge.
+      //
+      // Fix: fetch the real icon SVG markup once here (a normal network
+      // request, not one nested inside a data: URI, so it's not blocked),
+      // extract its inner markup, and pass that markup into
+      // iconWithBadge() so the composite SVG is fully self-contained with
+      // zero external fetches.
+      // ---------------------------------------------------------------
+      function fetchIconInner(url) {
+        return fetch(url)
+          .then(function (res) {
+            if (!res.ok) throw new Error("Failed to fetch icon: " + url);
+            return res.text();
+          })
+          .then(function (text) {
+            var match = text.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+            return match ? match[1] : text;
+          })
+          .catch(function (err) {
+            console.error("Easy Approve: icon fetch failed", err);
+            return null; // caller falls back to plain icon URL
+          });
+      }
+
+      var iconInnerPromise = Promise.all([
+        fetchIconInner(ICON_WHITE),
+        fetchIconInner(ICON_BLACK),
+      ]);
+
       window.TrelloPowerUp.initialize({
         "board-buttons": function (t, opts) {
           function buildButton(iconDark, iconLight) {
@@ -38,10 +78,13 @@
             t.board("id"),
             t.member("id"),
             t.get("member", "private", "token"),
+            iconInnerPromise,
           ]).then(function (results) {
             var boardId = results[0].id;
             var memberId = results[1].id;
             var token = results[2];
+            var whiteInner = results[3][0];
+            var blackInner = results[3][1];
 
             if (!token) {
               // Not authorized yet — no way to fetch board cards, show plain icon.
@@ -68,10 +111,17 @@
                   PLUGIN_ID,
                 );
                 console.log("Easy Approve: memberId", memberId, "count", count);
-                return buildButton(
-                  ApprovalsShared.iconWithBadge(ICON_WHITE, count),
-                  ApprovalsShared.iconWithBadge(ICON_BLACK, count),
-                );
+
+                var whiteIcon =
+                  count && whiteInner
+                    ? ApprovalsShared.iconWithBadge(whiteInner, count)
+                    : ICON_WHITE;
+                var blackIcon =
+                  count && blackInner
+                    ? ApprovalsShared.iconWithBadge(blackInner, count)
+                    : ICON_BLACK;
+
+                return buildButton(whiteIcon, blackIcon);
               })
               .catch(function (err) {
                 console.error("Easy Approve: badge count failed", err);

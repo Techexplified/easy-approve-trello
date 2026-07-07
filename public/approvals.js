@@ -103,23 +103,24 @@ var ApprovalsShared = (function () {
     return count;
   }
 
-  function iconWithBadge(iconUrl, count) {
-    if (!count) return iconUrl;
+  function iconWithBadge(iconSvgMarkup, count) {
+    if (!count) return iconSvgMarkup; // caller passes back a real URL when count is 0
 
     var display = count > 9 ? "9+" : String(count);
     var fontSize = display.length > 1 ? 10 : 12;
 
+    // Strip any xml/doctype prolog and outer <svg> wrapper isn't needed —
+    // just nest the fetched icon as a <g>/<svg> inside our composite one.
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
-      '<image href="' +
-      iconUrl +
-      '" x="0" y="6" width="24" height="24" />' +
+      '<svg x="0" y="6" width="24" height="24" viewBox="0 0 24 24">' +
+      iconSvgMarkup +
+      "</svg>" +
       '<circle cx="24" cy="8" r="8" fill="#eb5a46" />' +
       '<text x="24" y="9" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
-      '" ' +
-      'font-weight="700" fill="#ffffff">' +
+      '" font-weight="700" fill="#ffffff">' +
       display +
       "</text>" +
       "</svg>";
