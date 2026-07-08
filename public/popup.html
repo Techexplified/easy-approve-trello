@@ -290,7 +290,7 @@
           function (row) {
             row.addEventListener("click", function () {
               var url = row.getAttribute("data-url");
-              if (url) window.open(url, "_top");
+              if (url) t.navigate({ url: url });
             });
           },
         );
