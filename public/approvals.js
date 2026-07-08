@@ -130,7 +130,7 @@ var ApprovalsShared = (function () {
       '" x="-8" y="-8" width="48" height="48" />' +
       // Kept fully inside the 32x32 box (with room for the stroke) so it
       // can't get clipped by any container the icon is rendered inside.
-      '<circle cx="19" cy="13" r="13" fill="#eb5a46" stroke="#1d2125" stroke-width="2" />' +
+      '<circle cx="19" cy="13" r="15" fill="#eb5a46" stroke="#1d2125" stroke-width="2" />' +
       '<text x="19" y="14" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
