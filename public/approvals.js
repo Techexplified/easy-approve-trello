@@ -121,16 +121,17 @@ var ApprovalsShared = (function () {
     if (!count) return iconDataUri;
 
     var display = count > 9 ? "9+" : String(count);
-    var fontSize = display.length > 1 ? 18 : 20;
+    var fontSize = display.length > 1 ? 15 : 17;
 
     var svg =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" ' +
-      'viewBox="0 0 32 32" overflow="visible">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
       '<image href="' +
       iconDataUri +
       '" x="-8" y="-8" width="48" height="48" />' +
-      '<circle cx="25" cy="6" r="14" fill="#eb5a46" stroke="#1d2125" stroke-width="2.5" />' +
-      '<text x="25" y="7" text-anchor="middle" dominant-baseline="central" ' +
+      // Kept fully inside the 32x32 box (with room for the stroke) so it
+      // can't get clipped by any container the icon is rendered inside.
+      '<circle cx="19" cy="13" r="11" fill="#eb5a46" stroke="#1d2125" stroke-width="2" />' +
+      '<text x="19" y="14" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
       '" ' +
