@@ -121,15 +121,17 @@ var ApprovalsShared = (function () {
     if (!count) return iconDataUri;
 
     var display = count > 9 ? "9+" : String(count);
-    var fontSize = display.length > 1 ? 15 : 17;
+    var fontSize = display.length > 1 ? 16 : 18;
 
     var svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
+      // Oversized + centered so it "zooms in" and crops away any padding
+      // baked into the source icon file, making the glyph itself bigger.
       '<image href="' +
       iconDataUri +
-      '" x="1" y="1" width="30" height="30" />' +
-      '<circle cx="26" cy="7" r="10" fill="#eb5a46" stroke="#1d2125" stroke-width="2" />' +
-      '<text x="26" y="8" text-anchor="middle" dominant-baseline="central" ' +
+      '" x="-8" y="-8" width="48" height="48" />' +
+      '<circle cx="25" cy="7" r="12" fill="#eb5a46" stroke="#1d2125" stroke-width="2" />' +
+      '<text x="25" y="8" text-anchor="middle" dominant-baseline="central" ' +
       'font-family="Helvetica, Arial, sans-serif" font-size="' +
       fontSize +
       '" ' +
