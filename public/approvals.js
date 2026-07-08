@@ -103,6 +103,73 @@ var ApprovalsShared = (function () {
     return count;
   }
 
+  function timeAgo(timestamp) {
+    if (!timestamp) return "";
+    var seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return "just now";
+
+    var units = [
+      { label: "year", secs: 31536000 },
+      { label: "month", secs: 2592000 },
+      { label: "day", secs: 86400 },
+      { label: "hour", secs: 3600 },
+      { label: "minute", secs: 60 },
+    ];
+
+    for (var i = 0; i < units.length; i++) {
+      var count = Math.floor(seconds / units[i].secs);
+      if (count >= 1) {
+        return count + " " + units[i].label + (count > 1 ? "s" : "") + " ago";
+      }
+    }
+    return "just now";
+  }
+
+  function getPendingRequestsForMember(cards, memberId, pluginId) {
+    if (!cards || !memberId || !pluginId) return [];
+    var results = [];
+
+    cards.forEach(function (card) {
+      if (!card.pluginData) return;
+
+      var entry = card.pluginData.find(function (pd) {
+        return pd.idPlugin === pluginId;
+      });
+      if (!entry) return;
+
+      var parsed;
+      try {
+        parsed = JSON.parse(entry.value);
+      } catch (e) {
+        return;
+      }
+
+      var request =
+        (parsed && parsed.approvalRequest) ||
+        (parsed && parsed.shared && parsed.shared.approvalRequest);
+      if (!request || !request.approvers) return;
+
+      var mine = request.approvers.find(function (a) {
+        return a.id === memberId && a.status === "pending";
+      });
+      if (!mine) return;
+
+      results.push({
+        cardId: card.id,
+        cardName: card.name,
+        cardShortLink: card.shortLink,
+        requesterName: request.requesterName,
+        createdAt: request.createdAt,
+      });
+    });
+
+    results.sort(function (a, b) {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    return results;
+  }
+
   function iconAsDataUri(url) {
     return fetch(url)
       .then(function (res) {
@@ -153,6 +220,8 @@ var ApprovalsShared = (function () {
     fetchCardRequest: fetchCardRequest,
     saveCardRequest: saveCardRequest,
     countPendingForMember: countPendingForMember,
+    getPendingRequestsForMember: getPendingRequestsForMember,
+    timeAgo: timeAgo,
     iconWithBadge: iconWithBadge,
     iconAsDataUri: iconAsDataUri,
   };

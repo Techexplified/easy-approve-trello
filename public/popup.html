@@ -96,6 +96,68 @@
         align-items: center;
         justify-content: center;
       }
+      .requests-section {
+        margin-top: 20px;
+        text-align: left;
+      }
+      .requests-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #8c9bab;
+        padding: 0 2px 8px;
+      }
+      .requests-list {
+        max-height: 260px;
+        overflow-y: auto;
+        border-top: 1px solid #3d444d;
+      }
+      .requests-list::-webkit-scrollbar {
+        width: 8px;
+      }
+      .requests-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .requests-list::-webkit-scrollbar-thumb {
+        background: #3d444d;
+        border-radius: 4px;
+      }
+      .requests-list::-webkit-scrollbar-thumb:hover {
+        background: #4d5661;
+      }
+      .request-row {
+        padding: 10px 2px;
+        border-bottom: 1px solid #3d444d;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .request-row:hover {
+        background: #282e33;
+      }
+      .request-text {
+        font-size: 13px;
+        color: #b6c2cf;
+        line-height: 1.45;
+      }
+      .request-text b {
+        color: #fff;
+      }
+      .request-time {
+        font-size: 11px;
+        color: #8c9bab;
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding-top: 2px;
+      }
+      .requests-empty {
+        padding: 16px 2px;
+        font-size: 12px;
+        color: #8c9bab;
+        text-align: center;
+      }
       .spinner {
         display: inline-block;
         width: 14px;
@@ -151,6 +213,14 @@
           You're all set. You can now request and manage approvals on this
           board.
         </p>
+
+        <div class="requests-section">
+          <div class="requests-label">PENDING YOUR APPROVAL</div>
+          <div class="requests-list" id="requestsList"></div>
+          <div class="requests-empty" id="requestsEmpty" style="display: none">
+            No approval requests are waiting on you right now.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -159,16 +229,110 @@
 
       // ⚠️ Replace with your real Power-Up API key from https://trello.com/power-ups/admin
       var API_KEY = "be0af9c0de485c191cd377fdcb42e793";
+      // Must match the PLUGIN_ID used in connector.html
+      var PLUGIN_ID = "6a468ccfcafdf3b68af7fa8f";
 
       var defaultView = document.getElementById("defaultView");
       var successView = document.getElementById("successView");
       var authBtn = document.getElementById("authBtn");
       var statusMsg = document.getElementById("statusMsg");
+      var requestsList = document.getElementById("requestsList");
+      var requestsEmpty = document.getElementById("requestsEmpty");
 
-      function showSuccess() {
+      function escapeHtml(str) {
+        if (!str) return "";
+        var map = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        };
+        return str.replace(/[&<>"']/g, function (c) {
+          return map[c];
+        });
+      }
+
+      function renderRequestsList(requests) {
+        if (!requests || requests.length === 0) {
+          requestsList.innerHTML = "";
+          requestsEmpty.style.display = "block";
+          t.sizeTo("body");
+          return;
+        }
+
+        requestsEmpty.style.display = "none";
+        requestsList.innerHTML = requests
+          .map(function (r) {
+            var cardUrl = r.cardShortLink
+              ? "https://trello.com/c/" + r.cardShortLink
+              : "";
+            return (
+              '<div class="request-row" data-url="' +
+              cardUrl +
+              '">' +
+              '<div class="request-text"><b>' +
+              escapeHtml(r.requesterName || "Someone") +
+              "</b> need approvals from you on this card <b>" +
+              escapeHtml(r.cardName || "Untitled") +
+              "</b></div>" +
+              '<div class="request-time">' +
+              ApprovalsShared.timeAgo(r.createdAt) +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+
+        Array.prototype.forEach.call(
+          requestsList.querySelectorAll(".request-row"),
+          function (row) {
+            row.addEventListener("click", function () {
+              var url = row.getAttribute("data-url");
+              if (url) window.open(url, "_blank");
+            });
+          },
+        );
+
+        t.sizeTo("body");
+      }
+
+      function loadPendingRequests(token) {
+        return Promise.all([t.board("id"), t.member("id")])
+          .then(function (results) {
+            var boardId = results[0].id;
+            var memberId = results[1].id;
+            var url =
+              "https://api.trello.com/1/boards/" +
+              boardId +
+              "/cards?pluginData=true&fields=id,name,shortLink&key=" +
+              API_KEY +
+              "&token=" +
+              encodeURIComponent(token);
+
+            return fetch(url).then(function (res) {
+              if (!res.ok) throw new Error("Failed to fetch board cards");
+              return res.json().then(function (cards) {
+                return ApprovalsShared.getPendingRequestsForMember(
+                  cards,
+                  memberId,
+                  PLUGIN_ID,
+                );
+              });
+            });
+          })
+          .then(renderRequestsList)
+          .catch(function (err) {
+            console.error("Easy Approve: loading pending requests failed", err);
+            renderRequestsList([]);
+          });
+      }
+
+      function showSuccess(token) {
         defaultView.classList.add("hide");
         successView.classList.add("show");
         t.sizeTo("body");
+        loadPendingRequests(token);
       }
 
       function setStatus(text, type) {
@@ -179,7 +343,7 @@
       // If already authorized, skip straight to success view
       t.get("member", "private", "token").then(function (token) {
         if (token) {
-          showSuccess();
+          showSuccess(token);
         }
       });
 
@@ -202,12 +366,15 @@
 
         var authorizeOpts = { height: 680, width: 580 };
 
+        var authorizedToken;
+
         t.authorize(authUrl, authorizeOpts)
           .then(function (token) {
+            authorizedToken = token;
             return t.set("member", "private", "token", token);
           })
           .then(function () {
-            showSuccess();
+            showSuccess(authorizedToken);
           })
           .catch(function (err) {
             authBtn.disabled = false;
