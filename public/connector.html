@@ -110,18 +110,22 @@
                   memberId,
                   PLUGIN_ID,
                 );
-                console.log("Easy Approve: memberId", memberId, "count", count);
 
-                var whiteIcon =
-                  count && whiteInner
-                    ? ApprovalsShared.iconWithBadge(whiteInner, count)
-                    : ICON_WHITE;
-                var blackIcon =
-                  count && blackInner
-                    ? ApprovalsShared.iconWithBadge(blackInner, count)
-                    : ICON_BLACK;
+                if (!count) {
+                  return buildButton(ICON_WHITE, ICON_BLACK);
+                }
 
-                return buildButton(whiteIcon, blackIcon);
+                // Only inline the icon (fetch + data URI) when we actually
+                // need to draw a badge on top of it.
+                return Promise.all([
+                  ApprovalsShared.iconAsDataUri(ICON_WHITE),
+                  ApprovalsShared.iconAsDataUri(ICON_BLACK),
+                ]).then(function (dataUris) {
+                  return buildButton(
+                    ApprovalsShared.iconWithBadge(dataUris[0], count),
+                    ApprovalsShared.iconWithBadge(dataUris[1], count),
+                  );
+                });
               })
               .catch(function (err) {
                 console.error("Easy Approve: badge count failed", err);
