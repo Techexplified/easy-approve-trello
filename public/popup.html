@@ -15,11 +15,18 @@
           Arial, sans-serif;
         background: #1d2125;
         color: #b6c2cf;
+        /* FIX: Prevents the browser/Trello framework from creating duplicate scrollbars */
         overflow: hidden;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
+      /* Ensure your wrapper handles all content correctly */
       .wrap {
         padding: 28px 12px 24px;
         text-align: center;
+        flex: 1;
+        overflow-y: auto; /* FIX: Only this internal wrapper will scroll if content is long */
       }
       .icon-circle {
         width: 56px;
@@ -296,7 +303,8 @@
           },
         );
 
-        t.sizeTo("body");
+        // Replace the plain t.sizeTo("body") at the bottom of this function with:
+        t.sizeTo("body").catch(function () {});
       }
 
       function loadPendingRequests(token) {
@@ -333,7 +341,10 @@
       function showSuccess(token) {
         defaultView.classList.add("hide");
         successView.classList.add("show");
-        t.sizeTo("body");
+
+        // Fix the jump: Instantly establish a clean, comfortable container size
+        t.sizeTo("body").catch(function () {});
+
         loadPendingRequests(token);
       }
 
