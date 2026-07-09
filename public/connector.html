@@ -257,6 +257,12 @@
               title: "Approvals",
               icon: ICON_BLACK,
               action: {
+                // Trello's card-back-section only documents/guarantees a
+                // "text" property for the header action button — an
+                // icon-only action (no text) was silently not rendering.
+                // Keep the icon too in case Trello does use it, but text
+                // is what actually makes the button show up.
+                text: "⚙",
                 icon: GEAR_ICON,
                 callback: function (t) {
                   return t.popup({
