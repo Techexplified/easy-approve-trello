@@ -26,32 +26,51 @@ var ApprovalsShared = (function () {
   function initialsFor(fullName) {
     if (!fullName) return "?";
     var parts = fullName.trim().split(/\s+/);
-    var initials =
-      parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "");
-    return initials.toUpperCase();
+    // Secure bounds check to ensure the first character exists
+    var first = parts[0] ? parts[0][0] : "?";
+    var last =
+      parts.length > 1 && parts[parts.length - 1]
+        ? parts[parts.length - 1][0]
+        : "";
+    return (first + last).toUpperCase();
   }
 
   function avatarHtml(member) {
-    // member: { avatarUrl, fullName, initials, colorSeed }
-    if (member.avatarUrl) {
+    // member: { avatarUrl, fullName, initials, id, colorSeed }
+    if (!member)
+      return '<div class="avatar-fallback" style="background:#7a869a">?</div>';
+
+    // 1. If a valid avatar URL is present, use the image element
+    if (member.avatarUrl && member.avatarUrl.trim() !== "") {
       return (
-        '<img class="avatar-img" src="' + member.avatarUrl + '50.png" alt="" />'
+        '<img class="avatar-img" src="' +
+        member.avatarUrl +
+        '" alt="' +
+        (member.fullName || "") +
+        "\" onerror=\"this.style.display='none'; this.nextElementSibling.style.display='flex';\" />" +
+        // Hidden fallback div right behind it just in case the avatarUrl fails to load (404)
+        '<div class="avatar-fallback" style="background:#7a869a; display:none;">' +
+        initialsFor(member.fullName) +
+        "</div>"
       );
     }
+
+    // 2. Otherwise, fall back to a beautifully colored initial circle
     var colors = [
-      "#579dff",
-      "#4bce97",
-      "#e774bb",
-      "#f5cd47",
-      "#f87168",
-      "#9f8fef",
+      "#579dff", // Blue
+      "#4bce97", // Green
+      "#e774bb", // Pink
+      "#f5cd47", // Yellow
+      "#f87168", // Red
+      "#9f8fef", // Purple
     ];
-    var seed = (member.id || member.fullName || "").split("").reduce(function (
-      a,
-      c,
-    ) {
+
+    // Fallback seed calculation to prevent crashes if id or fullName are missing
+    var identifier = member.id || member.fullName || String(Math.random());
+    var seed = identifier.split("").reduce(function (a, c) {
       return a + c.charCodeAt(0);
     }, 0);
+
     var bg = colors[seed % colors.length];
     return (
       '<div class="avatar-fallback" style="background:' +
