@@ -11,6 +11,22 @@
       var ICON_BLACK =
         "https://easy-approve-beta.vercel.app/images/icon-black.svg";
 
+      // Gear icon used for the "action" button in the card-back-section
+      // header (top-right of the "Approvals" section). Built as an inline
+      // data URI so no extra network request/asset is needed.
+      var GEAR_ICON =
+        "data:image/svg+xml;base64," +
+        btoa(
+          unescape(
+            encodeURIComponent(
+              '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9fadbc" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="12" cy="12" r="3"></circle>' +
+                '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>' +
+                "</svg>",
+            ),
+          ),
+        );
+
       // Must match the API_KEY used in popup.html / decline-reason.html
       var API_KEY = "be0af9c0de485c191cd377fdcb42e793";
       // From https://trello.com/power-ups/admin → your Power-Up → "API" tab
@@ -240,6 +256,46 @@
             return {
               title: "Approvals",
               icon: ICON_BLACK,
+              action: {
+                icon: GEAR_ICON,
+                callback: function (t) {
+                  return t.popup({
+                    title: "Approvals",
+                    items: [
+                      {
+                        text: "Change approvers...",
+                        callback: function (t) {
+                          return t.popup({
+                            title: "Approvals",
+                            url: "./select-members.html?mode=edit",
+                            height: 420,
+                          });
+                        },
+                      },
+                      {
+                        text: "Reset approvals...",
+                        callback: function (t) {
+                          return t.popup({
+                            title: "Reset approvals?",
+                            url: "./confirm-action.html?action=reset",
+                            height: 200,
+                          });
+                        },
+                      },
+                      {
+                        text: "Remove all reviewers...",
+                        callback: function (t) {
+                          return t.popup({
+                            title: "Remove all reviewers?",
+                            url: "./confirm-action.html?action=remove",
+                            height: 200,
+                          });
+                        },
+                      },
+                    ],
+                  });
+                },
+              },
               content: {
                 type: "iframe",
                 url: t.signUrl("./card-back-section.html"),

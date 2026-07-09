@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="./approvals.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 18px 16px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: #1d2125;
+        color: #b6c2cf;
+      }
+      p.desc {
+        margin: 0 0 16px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #b6c2cf;
+      }
+      .btn-row {
+        display: flex;
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        flex: 1;
+        padding: 9px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #579dff;
+        color: #091e42;
+        transition: background 0.15s ease;
+      }
+      .btn:hover:not(:disabled) {
+        background: #85b8ff;
+      }
+      .btn:disabled {
+        background: #2c333a;
+        color: #738496;
+        cursor: default;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        min-height: 14px;
+      }
+      .status.error {
+        color: #f87168;
+      }
+      .spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(9, 30, 66, 0.3);
+        border-top-color: #091e42;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <p class="desc" id="desc"></p>
+    <div class="btn-row">
+      <button class="btn" id="actionBtn"></button>
+    </div>
+    <div class="status" id="statusMsg"></div>
+
+    <script>
+      var t = window.TrelloPowerUp.iframe();
+
+      function getQueryParam(name) {
+        var params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+
+      // "reset" or "remove"
+      var action = getQueryParam("action");
+
+      var CONFIG = {
+        reset: {
+          desc: "All the approvals and declines will be reset back to pending. There is no undo.",
+          btnText: "Reset",
+          busyText: "Resetting…",
+        },
+        remove: {
+          desc: "This will delete all of the reviews on this card. There is no undo. Are you sure?",
+          btnText: "Remove",
+          busyText: "Removing…",
+        },
+      };
+
+      var cfg = CONFIG[action] || CONFIG.reset;
+
+      var descEl = document.getElementById("desc");
+      var btn = document.getElementById("actionBtn");
+      var statusMsg = document.getElementById("statusMsg");
+
+      descEl.textContent = cfg.desc;
+      btn.textContent = cfg.btnText;
+
+      function setStatus(text, type) {
+        statusMsg.textContent = text || "";
+        statusMsg.className = "status" + (type ? " " + type : "");
+      }
+
+      function setBusy(busy) {
+        btn.disabled = busy;
+        btn.innerHTML = busy
+          ? '<span class="spinner"></span>' + cfg.busyText
+          : cfg.btnText;
+      }
+
+      function resetApprovals() {
+        return ApprovalsShared.fetchCardRequest(t).then(function (request) {
+          if (!request || !request.approvers) return;
+          var updated = JSON.parse(JSON.stringify(request));
+          updated.approvers = updated.approvers.map(function (a) {
+            a.status = "pending";
+            a.respondedAt = null;
+            return a;
+          });
+          return ApprovalsShared.saveCardRequest(t, updated);
+        });
+      }
+
+      function removeAllReviewers() {
+        return ApprovalsShared.removeCardRequest(t);
+      }
+
+      btn.addEventListener("click", function () {
+        setBusy(true);
+        setStatus("");
+
+        var task =
+          action === "remove" ? removeAllReviewers() : resetApprovals();
+
+        task
+          .then(function () {
+            return t.closePopup();
+          })
+          .catch(function (err) {
+            setBusy(false);
+            setStatus("Something went wrong. Please try again.", "error");
+          });
+      });
+
+      t.sizeTo("body");
+    </script>
+  </body>
+</html>

@@ -149,6 +149,16 @@
       var allMembers = [];
       var selectedIds = {};
 
+      function getQueryParam(name) {
+        var params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+
+      // When opened via "Change approvers...", we're editing the existing
+      // request rather than creating a brand new one.
+      var isEditMode = getQueryParam("mode") === "edit";
+      var existingRequest = null;
+
       function checkmarkSvg() {
         return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#4bce97" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       }
@@ -216,9 +226,10 @@
         var count = Object.keys(selectedIds).length;
         var footer = document.getElementById("footer");
         var btn = document.getElementById("sendBtn");
+        var label = isEditMode ? "Save Changes" : "Send Request";
         if (count > 0) {
           footer.classList.add("show");
-          btn.textContent = "Send Request (" + count + ")";
+          btn.textContent = label + " (" + count + ")";
         } else {
           footer.classList.remove("show");
         }
@@ -242,6 +253,19 @@
                 return selectedIds[m.id];
               })
               .map(function (m) {
+                // In edit mode, keep the existing status/respondedAt for
+                // anyone who was already an approver, so re-selecting the
+                // same members doesn't reset their approve/decline. Only
+                // newly-added members start out as "pending".
+                var existing =
+                  isEditMode && existingRequest && existingRequest.approvers
+                    ? existingRequest.approvers.find(function (a) {
+                        return a.id === m.id;
+                      })
+                    : null;
+
+                if (existing) return existing;
+
                 return {
                   id: m.id,
                   fullName: m.fullName,
@@ -252,12 +276,18 @@
                 };
               });
 
-            var request = {
-              requesterId: me.id,
-              requesterName: me.fullName,
-              createdAt: Date.now(),
-              approvers: approvers,
-            };
+            var request;
+            if (isEditMode && existingRequest) {
+              request = JSON.parse(JSON.stringify(existingRequest));
+              request.approvers = approvers;
+            } else {
+              request = {
+                requesterId: me.id,
+                requesterName: me.fullName,
+                createdAt: Date.now(),
+                approvers: approvers,
+              };
+            }
 
             return ApprovalsShared.saveCardRequest(t, request);
           })
@@ -266,10 +296,26 @@
           });
       });
 
-      // Load board members
-      t.board("members").then(function (board) {
+      // Load board members, and — in edit mode — the existing request so we
+      // can pre-select current approvers and preserve their statuses.
+      var loadMembers = t.board("members").then(function (board) {
         allMembers = board.members || [];
+      });
+
+      var loadExisting = isEditMode
+        ? ApprovalsShared.fetchCardRequest(t).then(function (request) {
+            existingRequest = request;
+            if (request && request.approvers) {
+              request.approvers.forEach(function (a) {
+                selectedIds[a.id] = true;
+              });
+            }
+          })
+        : Promise.resolve();
+
+      Promise.all([loadMembers, loadExisting]).then(function () {
         renderList("");
+        updateFooter();
         t.sizeTo("body");
       });
     </script>

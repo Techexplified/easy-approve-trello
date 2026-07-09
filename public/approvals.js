@@ -70,6 +70,10 @@ var ApprovalsShared = (function () {
     return t.set("card", "shared", "approvalRequest", request);
   }
 
+  function removeCardRequest(t) {
+    return t.remove("card", "shared", "approvalRequest");
+  }
+
   function countPendingForMember(cards, memberId, pluginId) {
     if (!cards || !memberId || !pluginId) return 0;
     var count = 0;
@@ -219,6 +223,7 @@ var ApprovalsShared = (function () {
     avatarHtml: avatarHtml,
     fetchCardRequest: fetchCardRequest,
     saveCardRequest: saveCardRequest,
+    removeCardRequest: removeCardRequest,
     countPendingForMember: countPendingForMember,
     getPendingRequestsForMember: getPendingRequestsForMember,
     timeAgo: timeAgo,
