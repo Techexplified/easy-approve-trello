@@ -191,17 +191,22 @@
         </div>
         <h2>Authorized successfully!</h2>
         <p class="desc">
-          You're all set. You can now request and manage approvals on this
-          board.
+          You're all set. You can now manage your approval requests directly on
+          this board.
         </p>
 
-        <div class="requests-section">
-          <div class="requests-label">PENDING YOUR APPROVAL</div>
-          <div class="requests-list" id="requestsList"></div>
-          <div class="requests-empty" id="requestsEmpty" style="display: none">
-            No approval requests are waiting on you right now.
-          </div>
-        </div>
+        <button
+          class="btn"
+          id="viewRequestsBtn"
+          style="
+            background: #2c333a;
+            color: #b6c2cf;
+            border: 1px solid #4d5661;
+            margin-top: 10px;
+          "
+        >
+          View Pending Requests
+        </button>
       </div>
     </div>
 
@@ -320,20 +325,23 @@
           });
       }
 
+      var viewRequestsBtn = document.getElementById("viewRequestsBtn");
+
       function showSuccess(token) {
         defaultView.classList.add("hide");
         successView.classList.add("show");
 
-        // FIX 1: Set a baseline minimum height on the wrapper to keep it stable
-        var wrap = document.querySelector(".wrap");
-        if (wrap) {
-          wrap.style.minHeight = "380px";
-        }
+        // This keeps the initial authorization window perfectly compact and static!
+        t.sizeTo("body").catch(function () {});
 
-        // Size to the wrapper instead of the fluid body to maintain steady dimensions
-        t.sizeTo(".wrap").catch(function () {});
-
-        loadPendingRequests(token);
+        // When clicked, open a clean, dedicated secondary Trello popup
+        viewRequestsBtn.addEventListener("click", function () {
+          t.popup({
+            title: "Pending Approvals",
+            url: "./all-requests.html", // We will create this file next
+            height: 400,
+          });
+        });
       }
 
       function setStatus(text, type) {
@@ -345,6 +353,8 @@
       t.get("member", "private", "token").then(function (token) {
         if (token) {
           showSuccess(token);
+        } else {
+          t.sizeTo("body").catch(function () {});
         }
       });
 
@@ -366,7 +376,6 @@
           encodeURIComponent(returnUrl);
 
         var authorizeOpts = { height: 680, width: 580 };
-
         var authorizedToken;
 
         t.authorize(authUrl, authorizeOpts)
