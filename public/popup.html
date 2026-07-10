@@ -279,7 +279,13 @@
           },
         );
 
-        // Let the Trello Frame resize gracefully to encapsulate all elements
+        // FIX 2: Clear the transitional baseline restriction now that the list has rendered
+        var wrap = document.querySelector(".wrap");
+        if (wrap) {
+          wrap.style.minHeight = "";
+        }
+
+        // Smoothly adjust to the exact final list dimensions
         t.sizeTo("body").catch(function () {});
       }
 
@@ -318,8 +324,14 @@
         defaultView.classList.add("hide");
         successView.classList.add("show");
 
-        // Fix the jump: Instantly establish a clean, comfortable container size
-        t.sizeTo("body").catch(function () {});
+        // FIX 1: Set a baseline minimum height on the wrapper to keep it stable
+        var wrap = document.querySelector(".wrap");
+        if (wrap) {
+          wrap.style.minHeight = "380px";
+        }
+
+        // Size to the wrapper instead of the fluid body to maintain steady dimensions
+        t.sizeTo(".wrap").catch(function () {});
 
         loadPendingRequests(token);
       }
