@@ -321,10 +321,17 @@
           })
         : Promise.resolve();
 
+      // Replace with this updated, race-condition safe initialization code:
       Promise.all([loadMembers, loadExisting]).then(function () {
         renderList("");
         updateFooter();
-        t.sizeTo("body");
+
+        // Wait for the browser to finish rendering and updating styles (like .footer.show)
+        requestAnimationFrame(function () {
+          setTimeout(function () {
+            t.sizeTo("body").catch(function () {});
+          }, 50);
+        });
       });
     </script>
   </body>
