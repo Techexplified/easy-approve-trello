@@ -160,11 +160,11 @@
             ) {
               return [
                 {
-                  title: "Approvals",
+                  title: "Easy Approve",
                   text: "Request for Approval",
                   callback: function (t) {
                     return t.popup({
-                      title: "Approvals",
+                      title: "Easy Approve",
                       url: "./select-members.html",
                       height: 420,
                     });
@@ -192,7 +192,7 @@
               if (mine && mine.status === "pending") {
                 return [
                   {
-                    title: "Approvals",
+                    title: "Easy Approve",
                     text: "🔔 Pending your approval",
                     color: "purple",
                   },
@@ -200,7 +200,7 @@
               }
               return [
                 {
-                  title: "Approvals",
+                  title: "Easy Approve",
                   text: "Pending (" + approved + "/" + total + ")",
                   color: "purple",
                 },
@@ -254,7 +254,7 @@
             }
 
             return {
-              title: "Approvals",
+              title: "Easy Approve",
               icon: ICON_BLACK,
               action: {
                 // Trello's card-back-section only documents/guarantees a
@@ -266,13 +266,13 @@
                 icon: GEAR_ICON,
                 callback: function (t) {
                   return t.popup({
-                    title: "Approvals",
+                    title: "Easy Approve",
                     items: [
                       {
                         text: "Change approvers...",
                         callback: function (t) {
                           return t.popup({
-                            title: "Approvals",
+                            title: "Easy Approve",
                             url: "./select-members.html?mode=edit",
                             height: 420,
                           });
