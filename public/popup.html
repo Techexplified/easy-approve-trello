@@ -15,19 +15,23 @@
           Arial, sans-serif;
         background: #1d2125;
         color: #b6c2cf;
-        /* FIX: Prevents the browser/Trello framework from creating duplicate scrollbars */
+        /* Force body to match iframe exactly and prevent external duplicate bars */
         overflow: hidden;
         height: 100vh;
+        width: 100%;
+      }
+      .wrap {
+        padding: 20px 16px 24px; /* Slightly adjusted padding for horizontal breathing room */
+        text-align: center;
+        height: 100%;
+        width: 100%;
         display: flex;
         flex-direction: column;
+        overflow: hidden; /* Stops this container from generating a second bar */
       }
-      /* Ensure your wrapper handles all content correctly */
-      .wrap {
-        padding: 28px 12px 24px;
-        text-align: center;
-        flex: 1;
-        overflow-y: auto; /* FIX: Only this internal wrapper will scroll if content is long */
-      }
+
+      /* ... keep your other styles unchanged until you reach .requests-list ... */
+
       .icon-circle {
         width: 56px;
         height: 56px;
@@ -117,9 +121,11 @@
         padding: 0 2px 8px;
       }
       .requests-list {
-        max-height: 260px;
+        /* This is the ONLY element allowed to scroll vertically */
+        max-height: 280px;
         overflow-y: auto;
         border-top: 1px solid #3d444d;
+        width: 100%;
       }
       .requests-list::-webkit-scrollbar {
         width: 8px;
