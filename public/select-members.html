@@ -324,7 +324,7 @@
       Promise.all([loadMembers, loadExisting]).then(function () {
         renderList("");
         updateFooter();
-        t.sizeTo("body");
+        t.sizeTo("body").catch(function () {});
       });
     </script>
   </body>
