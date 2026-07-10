@@ -15,45 +15,37 @@
           Arial, sans-serif;
         background: #1d2125;
         color: #b6c2cf;
-        /* Force body to match iframe exactly and prevent external duplicate bars */
-        overflow: hidden;
-        height: 100vh;
-        width: 100%;
+        /* FIX: Let Trello handle frame resizing naturally based on document content height */
+        overflow-y: auto;
       }
       .wrap {
-        padding: 20px 16px 24px; /* Slightly adjusted padding for horizontal breathing room */
+        padding: 16px;
         text-align: center;
-        height: 100%;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden; /* Stops this container from generating a second bar */
       }
-
-      /* ... keep your other styles unchanged until you reach .requests-list ... */
-
-      .icon-circle {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 16px;
+      .icon-circle,
+      .success-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
         border-radius: 50%;
         background: #1c3829;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .icon-circle svg {
-        width: 28px;
-        height: 28px;
+      .icon-circle svg,
+      .success-icon svg {
+        width: 24px;
+        height: 24px;
       }
       h2 {
-        margin: 0 0 6px;
-        font-size: 16px;
+        margin: 0 0 4px;
+        font-size: 15px;
         font-weight: 600;
         color: #fff;
       }
       p.desc {
-        margin: 0 0 22px;
+        margin: 0 0 16px;
         font-size: 13px;
         line-height: 1.5;
         color: #9fadbc;
@@ -79,17 +71,7 @@
         color: #738496;
         cursor: default;
       }
-      .status {
-        margin-top: 14px;
-        font-size: 12px;
-        min-height: 16px;
-      }
-      .status.error {
-        color: #f87168;
-      }
-      .status.success {
-        color: #4bce97;
-      }
+
       .success-view {
         display: none;
       }
@@ -99,95 +81,79 @@
       .default-view.hide {
         display: none;
       }
-      .success-icon {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 16px;
-        border-radius: 50%;
-        background: #1c3829;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+
+      /* --- NEW REQUESTS CONTAINER & CARDS STYLE --- */
       .requests-section {
-        margin-top: 20px;
+        margin-top: 24px;
         text-align: left;
       }
       .requests-label {
         font-size: 11px;
         font-weight: 700;
-        letter-spacing: 0.04em;
-        color: #8c9bab;
-        padding: 0 2px 8px;
+        letter-spacing: 0.06em;
+        color: #9fadbc;
+        margin-bottom: 8px;
+        padding-left: 4px;
       }
       .requests-list {
-        /* This is the ONLY element allowed to scroll vertically */
-        max-height: 280px;
-        overflow-y: auto;
-        border-top: 1px solid #3d444d;
+        display: flex;
+        flex-direction: column;
+        gap: 8px; /* Clean separation between item blocks */
         width: 100%;
       }
-      .requests-list::-webkit-scrollbar {
-        width: 8px;
-      }
-      .requests-list::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .requests-list::-webkit-scrollbar-thumb {
-        background: #3d444d;
-        border-radius: 4px;
-      }
-      .requests-list::-webkit-scrollbar-thumb:hover {
-        background: #4d5661;
-      }
       .request-row {
-        padding: 10px 2px;
-        border-bottom: 1px solid #3d444d;
+        background: #22272b; /* Trello standard card surface background color */
+        border: 1px solid #3d444d;
+        border-radius: 8px;
+        padding: 12px;
         cursor: pointer;
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 10px;
+        gap: 12px;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease;
       }
       .request-row:hover {
-        background: #282e33;
+        background: #2c333a;
+        border-color: #738496;
+      }
+      .request-content-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      /* Trello style item decoration indicator */
+      .card-decor-icon {
+        margin-top: 2px;
+        color: #9fadbc;
+        flex-shrink: 0;
       }
       .request-text {
         font-size: 13px;
         color: #b6c2cf;
-        line-height: 1.45;
+        line-height: 1.5;
       }
       .request-text b {
         color: #fff;
+        font-weight: 600;
       }
       .request-time {
         font-size: 11px;
-        color: #8c9bab;
+        color: #9fadbc;
         white-space: nowrap;
         flex-shrink: 0;
         padding-top: 2px;
       }
       .requests-empty {
-        padding: 16px 2px;
-        font-size: 12px;
-        color: #8c9bab;
+        padding: 24px;
+        font-size: 13px;
+        color: #9fadbc;
         text-align: center;
-      }
-      .spinner {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        border: 2px solid rgba(9, 30, 66, 0.3);
-        border-top-color: #091e42;
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-        vertical-align: middle;
-        margin-right: 6px;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
+        background: #22272b;
+        border-radius: 8px;
+        border: 1px dashed #3d444d;
       }
     </style>
   </head>
@@ -272,7 +238,7 @@
         if (!requests || requests.length === 0) {
           requestsList.innerHTML = "";
           requestsEmpty.style.display = "block";
-          t.sizeTo("body");
+          t.sizeTo("body").catch(function () {});
           return;
         }
 
@@ -286,11 +252,15 @@
               '<div class="request-row" data-url="' +
               cardUrl +
               '">' +
+              '<div class="request-content-wrapper">' +
+              // Inline minimal card layout symbol matching native look
+              '<span class="card-decor-icon">📋</span> ' +
               '<div class="request-text"><b>' +
               escapeHtml(r.requesterName || "Someone") +
-              "</b> need approvals from you on this card <b>" +
+              "</b> requested your approval on <b>" +
               escapeHtml(r.cardName || "Untitled") +
               "</b></div>" +
+              "</div>" +
               '<div class="request-time">' +
               ApprovalsShared.timeAgo(r.createdAt) +
               "</div>" +
@@ -309,7 +279,7 @@
           },
         );
 
-        // Replace the plain t.sizeTo("body") at the bottom of this function with:
+        // Let the Trello Frame resize gracefully to encapsulate all elements
         t.sizeTo("body").catch(function () {});
       }
 
