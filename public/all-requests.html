@@ -36,9 +36,8 @@
         padding: 10px 12px; /* Slightly tighter than original, but spacious enough for 2 lines */
         cursor: pointer;
         display: flex;
-        justify-content: space-between;
-        align-items: flex-start; /* Aligns items to the top so multi-line wrapping looks clean */
-        gap: 16px;
+        flex-direction: column;
+        gap: 8px;
         transition:
           background 0.15s ease,
           border-color 0.15s ease;
@@ -46,6 +45,12 @@
       .request-row:hover {
         background: #2c333a;
         border-color: #738496;
+      }
+      .request-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
       }
       .request-content-wrapper {
         display: flex;
@@ -78,6 +83,60 @@
         flex-shrink: 0;
         padding-top: 2px;
       }
+      .request-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .action-btn {
+        appearance: none;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .approve-btn {
+        background: #1c3829;
+        color: #4bce97;
+      }
+      .approve-btn:hover:not(:disabled) {
+        background: #204b30;
+      }
+      .decline-btn {
+        background: #3d1f1f;
+        color: #f87168;
+      }
+      .decline-btn:hover:not(:disabled) {
+        background: #4a2323;
+      }
+      .action-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .request-row.responded .request-actions {
+        display: none;
+      }
+      .response-pill {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        padding: 4px 10px;
+        border-radius: 12px;
+        align-self: flex-end;
+      }
+      .response-pill.approved {
+        background: #1c3829;
+        color: #4bce97;
+      }
+      .response-pill.declined {
+        background: #3d1f1f;
+        color: #f87168;
+      }
 
       .requests-empty {
         padding: 24px;
@@ -105,6 +164,8 @@
 
       var requestsList = document.getElementById("requestsList");
       var requestsEmpty = document.getElementById("requestsEmpty");
+      var currentToken = null;
+      var currentMemberId = null;
 
       function escapeHtml(str) {
         if (!str) return "";
@@ -137,7 +198,10 @@
             return (
               '<div class="request-row" data-url="' +
               cardUrl +
+              '" data-card-id="' +
+              r.cardId +
               '">' +
+              '<div class="request-main">' +
               '<div class="request-content-wrapper">' +
               '<span class="card-decor-icon">📋</span> ' +
               '<div class="request-text">' +
@@ -152,6 +216,11 @@
               '<div class="request-time">' +
               ApprovalsShared.timeAgo(r.createdAt) +
               "</div>" +
+              "</div>" +
+              '<div class="request-actions">' +
+              '<button class="action-btn approve-btn" data-action="approved">✓ Approve</button>' +
+              '<button class="action-btn decline-btn" data-action="declined">✕ Decline</button>' +
+              "</div>" +
               "</div>"
             );
           })
@@ -164,44 +233,99 @@
               var url = row.getAttribute("data-url");
               if (url) t.navigate({ url: url });
             });
+
+            Array.prototype.forEach.call(
+              row.querySelectorAll(".action-btn"),
+              function (btn) {
+                btn.addEventListener("click", function (e) {
+                  // Stop this from also triggering the row's "navigate to
+                  // card" click handler above.
+                  e.stopPropagation();
+                  handleRespond(row, btn.getAttribute("data-action"));
+                });
+              },
+            );
           },
         );
 
         t.sizeTo("body").catch(function () {});
       }
 
-      t.get("member", "private", "token").then(function (token) {
-        if (!token) return renderRequestsList([]);
+      function handleRespond(row, newStatus) {
+        var cardId = row.getAttribute("data-card-id");
+        var buttons = row.querySelectorAll(".action-btn");
 
-        return Promise.all([t.board("id"), t.member("id")])
-          .then(function (results) {
-            var boardId = results[0].id;
-            var memberId = results[1].id;
-            var url =
-              "https://api.trello.com/1/boards/" +
-              boardId +
-              "/cards?pluginData=true&fields=id,name,shortLink&key=" +
-              API_KEY +
-              "&token=" +
-              encodeURIComponent(token);
+        Array.prototype.forEach.call(buttons, function (b) {
+          b.disabled = true;
+        });
 
-            return fetch(url).then(function (res) {
-              if (!res.ok) throw new Error("Failed to fetch board cards");
-              return res.json().then(function (cards) {
-                return ApprovalsShared.getPendingRequestsForMember(
-                  cards,
-                  memberId,
-                  PLUGIN_ID,
-                );
-              });
-            });
+        ApprovalsShared.respondToRequestRest({
+          cardId: cardId,
+          apiKey: API_KEY,
+          token: currentToken,
+          pluginId: PLUGIN_ID,
+          memberId: currentMemberId,
+          newStatus: newStatus,
+        })
+          .then(function () {
+            // This request is no longer "pending your approval" — replace
+            // the action buttons with a small status pill and stop the row
+            // from navigating to the card on click.
+            row.classList.add("responded");
+            var actions = row.querySelector(".request-actions");
+            actions.innerHTML =
+              '<span class="response-pill ' +
+              newStatus +
+              '">' +
+              (newStatus === "approved" ? "Approved" : "Declined") +
+              "</span>";
+            t.sizeTo("body").catch(function () {});
           })
-          .then(renderRequestsList)
           .catch(function (err) {
-            console.error("Failed loading requests", err);
-            renderRequestsList([]);
+            console.error("Easy Approve: failed to update request", err);
+            Array.prototype.forEach.call(buttons, function (b) {
+              b.disabled = false;
+            });
           });
-      });
+      }
+
+      function loadPendingRequests() {
+        return t.get("member", "private", "token").then(function (token) {
+          if (!token) return renderRequestsList([]);
+          currentToken = token;
+
+          return Promise.all([t.board("id"), t.member("id")])
+            .then(function (results) {
+              var boardId = results[0].id;
+              currentMemberId = results[1].id;
+              var url =
+                "https://api.trello.com/1/boards/" +
+                boardId +
+                "/cards?pluginData=true&fields=id,name,shortLink&key=" +
+                API_KEY +
+                "&token=" +
+                encodeURIComponent(token);
+
+              return fetch(url).then(function (res) {
+                if (!res.ok) throw new Error("Failed to fetch board cards");
+                return res.json().then(function (cards) {
+                  return ApprovalsShared.getPendingRequestsForMember(
+                    cards,
+                    currentMemberId,
+                    PLUGIN_ID,
+                  );
+                });
+              });
+            })
+            .then(renderRequestsList)
+            .catch(function (err) {
+              console.error("Failed loading requests", err);
+              renderRequestsList([]);
+            });
+        });
+      }
+
+      loadPendingRequests();
     </script>
   </body>
 </html>
