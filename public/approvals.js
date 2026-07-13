@@ -244,12 +244,13 @@ var ApprovalsShared = (function () {
       "&token=" +
       encodeURIComponent(opts.token);
 
+    // Change the route structure to target the card's shared visibility directly
     var putUrl =
-      "https://api.trello.com/1/plugins/" +
-      encodeURIComponent(opts.pluginId) +
-      "/cards/" +
+      "https://api.trello.com/1/cards/" +
       encodeURIComponent(opts.cardId) +
-      "/pluginData?key=" +
+      "/pluginData/" +
+      encodeURIComponent(opts.pluginId) +
+      "/shared?key=" +
       opts.apiKey +
       "&token=" +
       encodeURIComponent(opts.token);
@@ -282,7 +283,6 @@ var ApprovalsShared = (function () {
 
         var finalPutUrl = putUrl + "&value=" + encodeURIComponent(valueStr);
 
-        // Changed method to PUT
         return fetch(finalPutUrl, { method: "PUT" }).then(function (res) {
           if (!res.ok) throw new Error("Failed to update approval request");
           return updated;
