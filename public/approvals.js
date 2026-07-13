@@ -232,69 +232,26 @@ var ApprovalsShared = (function () {
     return null;
   }
 
-  function respondToRequestRest(opts) {
-    // opts: { cardId, apiKey, token, pluginId, memberId, newStatus }
-    // Does a read-modify-write against the REST API, since this list is
-    // board-scoped and has no card-context iframe to use t.set()/t.get() with.
-    var getUrl =
-      "https://api.trello.com/1/cards/" +
-      encodeURIComponent(opts.cardId) +
-      "?pluginData=true&fields=id&key=" +
-      opts.apiKey +
-      "&token=" +
-      encodeURIComponent(opts.token);
+  function respondToRequestFromBoard(t, cardId, memberId, newStatus) {
+    // Reads the specific card's data, modifies the approver's status, and saves it natively.
+    return t.get(cardId, "shared", "approvalRequest").then(function (request) {
+      if (!request) throw new Error("No approval request found on this card");
 
-    // Change the route structure to target the card's shared visibility directly
-    var putUrl =
-      "https://api.trello.com/1/cards/" +
-      encodeURIComponent(opts.cardId) +
-      "/pluginData/" +
-      encodeURIComponent(opts.pluginId) +
-      "/shared?key=" +
-      opts.apiKey +
-      "&token=" +
-      encodeURIComponent(opts.token);
+      var updated = JSON.parse(JSON.stringify(request));
+      updated.approvers = updated.approvers.map(function (a) {
+        if (a.id === memberId) {
+          a.status = newStatus;
+          a.respondedAt = Date.now();
+        }
+        return a;
+      });
 
-    return fetch(getUrl)
-      .then(function (res) {
-        if (!res.ok) throw new Error("Failed to fetch card plugin data");
-        return res.json();
-      })
-      .then(function (card) {
-        var entries = card.pluginData || [];
-        var entry = entries.find(function (e) {
-          return e.idPlugin === opts.pluginId;
-        });
-        if (!entry) throw new Error("No approval request found on this card");
-
-        var parsedEntry = parsePluginEntry(entry);
-        if (!parsedEntry) throw new Error("Could not parse approval request");
-
-        var updated = JSON.parse(JSON.stringify(parsedEntry.request));
-        updated.approvers = updated.approvers.map(function (a) {
-          if (a.id === opts.memberId) {
-            a.status = opts.newStatus;
-            a.respondedAt = Date.now();
-          }
-          return a;
-        });
-
-        var valueStr = parsedEntry.serialize(updated);
-
-        // Do not append value to the URL. Use putUrl directly.
-        return fetch(putUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            value: valueStr,
-          }),
-        }).then(function (res) {
-          if (!res.ok) throw new Error("Failed to update approval request");
+      return t
+        .set(cardId, "shared", "approvalRequest", updated)
+        .then(function () {
           return updated;
         });
-      });
+    });
   }
 
   function iconAsDataUri(url) {
@@ -350,7 +307,7 @@ var ApprovalsShared = (function () {
     countPendingForMember: countPendingForMember,
     getPendingRequestsForMember: getPendingRequestsForMember,
     parsePluginEntry: parsePluginEntry,
-    respondToRequestRest: respondToRequestRest,
+    respondToRequestFromBoard: respondToRequestFromBoard,
     timeAgo: timeAgo,
     iconWithBadge: iconWithBadge,
     iconAsDataUri: iconAsDataUri,
