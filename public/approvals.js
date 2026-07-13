@@ -193,6 +193,93 @@ var ApprovalsShared = (function () {
     return results;
   }
 
+  function parsePluginEntry(entry) {
+    // Reads a raw card pluginData entry and returns both the request object
+    // and a serialize() function that writes an updated request back into
+    // the *same* JSON shape it was found in (either the flat
+    // {approvalRequest} form or the {shared: {approvalRequest}} form that
+    // t.set()/t.get() use). This avoids ever guessing the "correct" shape —
+    // whatever shape is already on the card is the shape we preserve.
+    var parsed;
+    try {
+      parsed = JSON.parse(entry.value);
+    } catch (e) {
+      return null;
+    }
+
+    if (parsed && parsed.approvalRequest) {
+      return {
+        request: parsed.approvalRequest,
+        serialize: function (updatedRequest) {
+          var clone = JSON.parse(JSON.stringify(parsed));
+          clone.approvalRequest = updatedRequest;
+          return JSON.stringify(clone);
+        },
+      };
+    }
+
+    if (parsed && parsed.shared && parsed.shared.approvalRequest) {
+      return {
+        request: parsed.shared.approvalRequest,
+        serialize: function (updatedRequest) {
+          var clone = JSON.parse(JSON.stringify(parsed));
+          clone.shared.approvalRequest = updatedRequest;
+          return JSON.stringify(clone);
+        },
+      };
+    }
+
+    return null;
+  }
+
+  function respondToRequestRest(opts) {
+    // opts: { cardId, apiKey, token, pluginId, memberId, newStatus }
+    // Does a read-modify-write against the REST API, since this list is
+    // board-scoped and has no card-context iframe to use t.set()/t.get() with.
+    var base =
+      "https://api.trello.com/1/cards/" +
+      encodeURIComponent(opts.cardId) +
+      "/pluginData?key=" +
+      opts.apiKey +
+      "&token=" +
+      encodeURIComponent(opts.token);
+
+    return fetch(base)
+      .then(function (res) {
+        if (!res.ok) throw new Error("Failed to fetch card plugin data");
+        return res.json();
+      })
+      .then(function (entries) {
+        var entry = entries.find(function (e) {
+          return e.idPlugin === opts.pluginId;
+        });
+        if (!entry) throw new Error("No approval request found on this card");
+
+        var parsedEntry = parsePluginEntry(entry);
+        if (!parsedEntry) throw new Error("Could not parse approval request");
+
+        var updated = JSON.parse(JSON.stringify(parsedEntry.request));
+        updated.approvers = updated.approvers.map(function (a) {
+          if (a.id === opts.memberId) {
+            a.status = opts.newStatus;
+            a.respondedAt = Date.now();
+          }
+          return a;
+        });
+
+        var valueStr = parsedEntry.serialize(updated);
+
+        return fetch(base, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ value: valueStr }),
+        }).then(function (res) {
+          if (!res.ok) throw new Error("Failed to update approval request");
+          return updated;
+        });
+      });
+  }
+
   function iconAsDataUri(url) {
     return fetch(url)
       .then(function (res) {
@@ -245,6 +332,8 @@ var ApprovalsShared = (function () {
     removeCardRequest: removeCardRequest,
     countPendingForMember: countPendingForMember,
     getPendingRequestsForMember: getPendingRequestsForMember,
+    parsePluginEntry: parsePluginEntry,
+    respondToRequestRest: respondToRequestRest,
     timeAgo: timeAgo,
     iconWithBadge: iconWithBadge,
     iconAsDataUri: iconAsDataUri,
