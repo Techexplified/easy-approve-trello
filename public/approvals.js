@@ -244,8 +244,10 @@ var ApprovalsShared = (function () {
       "&token=" +
       encodeURIComponent(opts.token);
 
-    var postUrl =
-      "https://api.trello.com/1/cards/" +
+    var putUrl =
+      "https://api.trello.com/1/plugins/" +
+      encodeURIComponent(opts.pluginId) +
+      "/cards/" +
       encodeURIComponent(opts.cardId) +
       "/pluginData?key=" +
       opts.apiKey +
@@ -278,9 +280,10 @@ var ApprovalsShared = (function () {
 
         var valueStr = parsedEntry.serialize(updated);
 
-        var finalPostUrl = postUrl + "&value=" + encodeURIComponent(valueStr);
+        var finalPutUrl = putUrl + "&value=" + encodeURIComponent(valueStr);
 
-        return fetch(finalPostUrl, { method: "POST" }).then(function (res) {
+        // Changed method to PUT
+        return fetch(finalPutUrl, { method: "PUT" }).then(function (res) {
           if (!res.ok) throw new Error("Failed to update approval request");
           return updated;
         });
