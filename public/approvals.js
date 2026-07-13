@@ -269,11 +269,9 @@ var ApprovalsShared = (function () {
 
         var valueStr = parsedEntry.serialize(updated);
 
-        return fetch(base, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ value: valueStr }),
-        }).then(function (res) {
+        var postUrl = base + "&value=" + encodeURIComponent(valueStr);
+
+        return fetch(postUrl, { method: "POST" }).then(function (res) {
           if (!res.ok) throw new Error("Failed to update approval request");
           return updated;
         });
