@@ -259,11 +259,12 @@
           b.disabled = true;
         });
 
+        // Pass the correct local variables
         ApprovalsShared.respondToRequestFromBoard(
           t,
-          currentCardId,
-          myId,
-          action,
+          cardId,
+          currentMemberId,
+          newStatus,
         )
           .then(function (updatedRequest) {
             console.log("Success! Card updated natively.");
