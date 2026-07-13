@@ -281,9 +281,16 @@ var ApprovalsShared = (function () {
 
         var valueStr = parsedEntry.serialize(updated);
 
-        var finalPutUrl = putUrl + "&value=" + encodeURIComponent(valueStr);
-
-        return fetch(finalPutUrl, { method: "PUT" }).then(function (res) {
+        // Do not append value to the URL. Use putUrl directly.
+        return fetch(putUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            value: valueStr,
+          }),
+        }).then(function (res) {
           if (!res.ok) throw new Error("Failed to update approval request");
           return updated;
         });
