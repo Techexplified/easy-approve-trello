@@ -236,7 +236,15 @@ var ApprovalsShared = (function () {
     // opts: { cardId, apiKey, token, pluginId, memberId, newStatus }
     // Does a read-modify-write against the REST API, since this list is
     // board-scoped and has no card-context iframe to use t.set()/t.get() with.
-    var base =
+    var getUrl =
+      "https://api.trello.com/1/cards/" +
+      encodeURIComponent(opts.cardId) +
+      "?pluginData=true&fields=id&key=" +
+      opts.apiKey +
+      "&token=" +
+      encodeURIComponent(opts.token);
+
+    var postUrl =
       "https://api.trello.com/1/cards/" +
       encodeURIComponent(opts.cardId) +
       "/pluginData?key=" +
@@ -244,12 +252,13 @@ var ApprovalsShared = (function () {
       "&token=" +
       encodeURIComponent(opts.token);
 
-    return fetch(base)
+    return fetch(getUrl)
       .then(function (res) {
         if (!res.ok) throw new Error("Failed to fetch card plugin data");
         return res.json();
       })
-      .then(function (entries) {
+      .then(function (card) {
+        var entries = card.pluginData || [];
         var entry = entries.find(function (e) {
           return e.idPlugin === opts.pluginId;
         });
@@ -269,9 +278,9 @@ var ApprovalsShared = (function () {
 
         var valueStr = parsedEntry.serialize(updated);
 
-        var postUrl = base + "&value=" + encodeURIComponent(valueStr);
+        var finalPostUrl = postUrl + "&value=" + encodeURIComponent(valueStr);
 
-        return fetch(postUrl, { method: "POST" }).then(function (res) {
+        return fetch(finalPostUrl, { method: "POST" }).then(function (res) {
           if (!res.ok) throw new Error("Failed to update approval request");
           return updated;
         });
