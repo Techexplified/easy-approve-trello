@@ -208,6 +208,19 @@
           View Pending Requests
         </button>
       </div>
+
+      <div
+        class="requests-view"
+        id="requestsView"
+        style="display: none; text-align: left"
+      >
+        <div class="requests-section">
+          <div class="requests-list" id="requestsList"></div>
+          <div class="requests-empty" id="requestsEmpty" style="display: none">
+            No approval requests are waiting on you right now.
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -330,18 +343,23 @@
       function showSuccess(token) {
         defaultView.classList.add("hide");
         successView.classList.add("show");
-
-        // This keeps the initial authorization window perfectly compact and static!
         t.sizeTo("body").catch(function () {});
 
-        // When clicked, open a clean, dedicated secondary Trello popup
+        // Mark that the user has now seen this screen, so future opens skip
+        // straight to the pending-requests view instead.
+        t.set("member", "private", "hasSeenAuthSuccess", true);
+
         viewRequestsBtn.addEventListener("click", function () {
-          t.popup({
-            title: "Pending Approvals",
-            url: "./all-requests.html", // We will create this file next
-            height: 400,
-          });
+          showRequestsView(token);
         });
+      }
+
+      function showRequestsView(token) {
+        defaultView.classList.add("hide");
+        successView.classList.remove("show");
+        document.getElementById("requestsView").style.display = "block";
+        t.sizeTo("body").catch(function () {});
+        loadPendingRequests(token);
       }
 
       function setStatus(text, type) {
@@ -351,11 +369,19 @@
 
       // If already authorized, skip straight to success view
       t.get("member", "private", "token").then(function (token) {
-        if (token) {
-          showSuccess(token);
-        } else {
+        if (!token) {
           t.sizeTo("body").catch(function () {});
+          return;
         }
+        return t
+          .get("member", "private", "hasSeenAuthSuccess")
+          .then(function (seen) {
+            if (seen) {
+              showRequestsView(token);
+            } else {
+              showSuccess(token);
+            }
+          });
       });
 
       authBtn.addEventListener("click", function () {
