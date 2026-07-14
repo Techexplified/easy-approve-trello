@@ -155,6 +155,68 @@
         border-radius: 8px;
         border: 1px dashed #3d444d;
       }
+
+      .request-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .request-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .action-btn {
+        appearance: none;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .approve-btn {
+        background: #1c3829;
+        color: #4bce97;
+      }
+      .approve-btn:hover:not(:disabled) {
+        background: #204b30;
+      }
+      .decline-btn {
+        background: #3d1f1f;
+        color: #f87168;
+      }
+      .decline-btn:hover:not(:disabled) {
+        background: #4a2323;
+      }
+      .action-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .request-row.responded .request-actions {
+        display: none;
+      }
+      .response-pill {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        padding: 4px 10px;
+        border-radius: 12px;
+        align-self: flex-end;
+      }
+      .response-pill.approved {
+        background: #1c3829;
+        color: #4bce97;
+      }
+      .response-pill.declined {
+        background: #3d1f1f;
+        color: #f87168;
+      }
     </style>
   </head>
   <body>
@@ -237,6 +299,7 @@
       var statusMsg = document.getElementById("statusMsg");
       var requestsList = document.getElementById("requestsList");
       var requestsEmpty = document.getElementById("requestsEmpty");
+      var currentMemberId = null;
 
       function escapeHtml(str) {
         if (!str) return "";
@@ -269,18 +332,27 @@
             return (
               '<div class="request-row" data-url="' +
               cardUrl +
+              '" data-card-id="' +
+              r.cardId +
               '">' +
+              '<div class="request-main">' +
               '<div class="request-content-wrapper">' +
-              // Inline minimal card layout symbol matching native look
               '<span class="card-decor-icon">📋</span> ' +
-              '<div class="request-text"><b>' +
+              '<div class="request-text">' +
+              "<b>" +
               escapeHtml(r.requesterName || "Someone") +
               "</b> requested your approval on <b>" +
               escapeHtml(r.cardName || "Untitled") +
-              "</b></div>" +
+              "</b>" +
+              "</div>" +
               "</div>" +
               '<div class="request-time">' +
               ApprovalsShared.timeAgo(r.createdAt) +
+              "</div>" +
+              "</div>" +
+              '<div class="request-actions">' +
+              '<button class="action-btn approve-btn" data-action="approved">✓ Approve</button>' +
+              '<button class="action-btn decline-btn" data-action="declined">✕ Decline</button>' +
               "</div>" +
               "</div>"
             );
@@ -294,17 +366,53 @@
               var url = row.getAttribute("data-url");
               if (url) t.navigate({ url: url });
             });
+
+            Array.prototype.forEach.call(
+              row.querySelectorAll(".action-btn"),
+              function (btn) {
+                btn.addEventListener("click", function (e) {
+                  e.stopPropagation();
+                  handleRespond(row, btn.getAttribute("data-action"));
+                });
+              },
+            );
           },
         );
 
-        // FIX 2: Clear the transitional baseline restriction now that the list has rendered
-        var wrap = document.querySelector(".wrap");
-        if (wrap) {
-          wrap.style.minHeight = "";
-        }
-
-        // Smoothly adjust to the exact final list dimensions
         t.sizeTo("body").catch(function () {});
+      }
+
+      function handleRespond(row, newStatus) {
+        var cardId = row.getAttribute("data-card-id");
+        var buttons = row.querySelectorAll(".action-btn");
+
+        Array.prototype.forEach.call(buttons, function (b) {
+          b.disabled = true;
+        });
+
+        ApprovalsShared.respondToRequestFromBoard(
+          t,
+          cardId,
+          currentMemberId,
+          newStatus,
+        )
+          .then(function (updatedRequest) {
+            row.classList.add("responded");
+            var actions = row.querySelector(".request-actions");
+            actions.innerHTML =
+              '<span class="response-pill ' +
+              newStatus +
+              '">' +
+              (newStatus === "approved" ? "Approved" : "Declined") +
+              "</span>";
+            t.sizeTo("body").catch(function () {});
+          })
+          .catch(function (err) {
+            console.error("Easy Approve: failed to update request", err);
+            Array.prototype.forEach.call(buttons, function (b) {
+              b.disabled = false;
+            });
+          });
       }
 
       function loadPendingRequests(token) {
@@ -312,6 +420,7 @@
           .then(function (results) {
             var boardId = results[0].id;
             var memberId = results[1].id;
+            currentMemberId = memberId;
             var url =
               "https://api.trello.com/1/boards/" +
               boardId +
