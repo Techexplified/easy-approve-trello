@@ -33,44 +33,21 @@
       var PLUGIN_ID = "6a468ccfcafdf3b68af7fa8f";
 
       // ---------------------------------------------------------------
-      // Fix for badge icons not rendering:
+      // Note on badge icons:
       //
       // ApprovalsShared.iconWithBadge() builds a composite SVG (base icon
-      // + red count circle) and serializes it into a data: URI. Previously
-      // that composite SVG contained an <image href="https://..."> pointing
-      // at an external URL. Once an SVG is loaded via a data: URI it has an
-      // opaque/unique origin, and browsers block <image>/<use> elements
-      // inside it from fetching external cross-origin resources. That
-      // fetch was silently failing, producing the "broken image" glyph
-      // you saw next to the (correctly rendered, since it's plain inline
-      // SVG) red count badge.
-      //
-      // Fix: fetch the real icon SVG markup once here (a normal network
-      // request, not one nested inside a data: URI, so it's not blocked),
-      // extract its inner markup, and pass that markup into
-      // iconWithBadge() so the composite SVG is fully self-contained with
-      // zero external fetches.
+      // + red count circle). It receives the base icon already inlined as
+      // a data: URI (via ApprovalsShared.iconAsDataUri()) before it's ever
+      // passed in, so the composite SVG's <image href="..."> always points
+      // at a data: URI, never an external URL. There's nothing further to
+      // pre-fetch here — a previous attempt to "fix" broken badge icons by
+      // pre-fetching raw icon markup (iconInnerPromise/fetchIconInner) was
+      // dead code: it computed values that were never actually used, and
+      // it added two extra external network round-trips that every
+      // board-buttons call had to wait on before a button could render at
+      // all. That extra, unused latency is the most likely reason the
+      // toolbar button intermittently failed to show up. Removed.
       // ---------------------------------------------------------------
-      function fetchIconInner(url) {
-        return fetch(url)
-          .then(function (res) {
-            if (!res.ok) throw new Error("Failed to fetch icon: " + url);
-            return res.text();
-          })
-          .then(function (text) {
-            var match = text.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
-            return match ? match[1] : text;
-          })
-          .catch(function (err) {
-            console.error("Easy Approve: icon fetch failed", err);
-            return null; // caller falls back to plain icon URL
-          });
-      }
-
-      var iconInnerPromise = Promise.all([
-        fetchIconInner(ICON_WHITE),
-        fetchIconInner(ICON_BLACK),
-      ]);
 
       window.TrelloPowerUp.initialize({
         "board-buttons": function (t, opts) {
@@ -95,60 +72,68 @@
             t.board("id"),
             t.member("id"),
             t.get("member", "private", "token"),
-            iconInnerPromise,
-          ]).then(function (results) {
-            var boardId = results[0].id;
-            var memberId = results[1].id;
-            var token = results[2];
-            var whiteInner = results[3][0];
-            var blackInner = results[3][1];
+          ])
+            .then(function (results) {
+              var boardId = results[0].id;
+              var memberId = results[1].id;
+              var token = results[2];
 
-            if (!token) {
-              // Not authorized yet — no way to fetch board cards, show plain icon.
-              return buildButton(ICON_WHITE, ICON_BLACK);
-            }
-
-            var url =
-              "https://api.trello.com/1/boards/" +
-              boardId +
-              "/cards?pluginData=true&fields=id&key=" +
-              API_KEY +
-              "&token=" +
-              encodeURIComponent(token);
-
-            return fetch(url)
-              .then(function (res) {
-                if (!res.ok) throw new Error("Failed to fetch board cards");
-                return res.json();
-              })
-              .then(function (cards) {
-                var count = ApprovalsShared.countPendingForMember(
-                  cards,
-                  memberId,
-                  PLUGIN_ID,
-                );
-
-                if (!count) {
-                  return buildButton(ICON_WHITE, ICON_BLACK);
-                }
-
-                // Only inline the icon (fetch + data URI) when we actually
-                // need to draw a badge on top of it.
-                return Promise.all([
-                  ApprovalsShared.iconAsDataUri(ICON_WHITE),
-                  ApprovalsShared.iconAsDataUri(ICON_BLACK),
-                ]).then(function (dataUris) {
-                  return buildButton(
-                    ApprovalsShared.iconWithBadge(dataUris[0], count),
-                    ApprovalsShared.iconWithBadge(dataUris[1], count),
-                  );
-                });
-              })
-              .catch(function (err) {
-                console.error("Easy Approve: badge count failed", err);
+              if (!token) {
+                // Not authorized yet — no way to fetch board cards, show plain icon.
                 return buildButton(ICON_WHITE, ICON_BLACK);
-              });
-          });
+              }
+
+              var url =
+                "https://api.trello.com/1/boards/" +
+                boardId +
+                "/cards?pluginData=true&fields=id&key=" +
+                API_KEY +
+                "&token=" +
+                encodeURIComponent(token);
+
+              return fetch(url)
+                .then(function (res) {
+                  if (!res.ok) throw new Error("Failed to fetch board cards");
+                  return res.json();
+                })
+                .then(function (cards) {
+                  var count = ApprovalsShared.countPendingForMember(
+                    cards,
+                    memberId,
+                    PLUGIN_ID,
+                  );
+
+                  if (!count) {
+                    return buildButton(ICON_WHITE, ICON_BLACK);
+                  }
+
+                  // Only inline the icon (fetch + data URI) when we actually
+                  // need to draw a badge on top of it.
+                  return Promise.all([
+                    ApprovalsShared.iconAsDataUri(ICON_WHITE),
+                    ApprovalsShared.iconAsDataUri(ICON_BLACK),
+                  ]).then(function (dataUris) {
+                    return buildButton(
+                      ApprovalsShared.iconWithBadge(dataUris[0], count),
+                      ApprovalsShared.iconWithBadge(dataUris[1], count),
+                    );
+                  });
+                })
+                .catch(function (err) {
+                  console.error("Easy Approve: badge count failed", err);
+                  return buildButton(ICON_WHITE, ICON_BLACK);
+                });
+            })
+            .catch(function (err) {
+              // Belt-and-suspenders: if t.board()/t.member()/t.get() ever
+              // reject (e.g. a brand-new member/board with no plugin data
+              // yet), we must still return a button. Previously there was
+              // no catch on this outer chain, so a rejection here meant
+              // board-buttons resolved to nothing and the toolbar button
+              // simply never appeared — with no error visible to the user.
+              console.error("Easy Approve: board-buttons failed", err);
+              return buildButton(ICON_WHITE, ICON_BLACK);
+            });
         },
 
         "card-detail-badges": function (t, opts) {
@@ -308,6 +293,35 @@
                 height: 200,
               },
             };
+          });
+        },
+
+        // ---------------------------------------------------------------
+        // Native authorization affordance.
+        //
+        // Until now the ONLY way to reach popup.html's "Authorize Easy
+        // Approve" button was the custom board-buttons toolbar button.
+        // If that button ever fails to render (network hiccup, timing,
+        // an unhandled rejection like the one fixed above, etc.) there
+        // was no way in at all — which is exactly what the reviewer hit.
+        //
+        // authorization-status + show-authorization plug into Trello's
+        // own "Authorize Account" prompt (under the Power-Up's gear
+        // icon), giving a second, Trello-native path to the same
+        // popup.html flow that doesn't depend on our own UI rendering.
+        // ---------------------------------------------------------------
+        "authorization-status": function (t, opts) {
+          return t.get("member", "private", "token").then(function (token) {
+            return { authorized: !!token };
+          });
+        },
+
+        "show-authorization": function (t, opts) {
+          return t.popup({
+            title: "Easy Approve",
+            url: "./popup.html",
+            height: 300,
+            width: 520,
           });
         },
       });
