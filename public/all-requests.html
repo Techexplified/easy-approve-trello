@@ -267,7 +267,7 @@
           newStatus,
         )
           .then(function (updatedRequest) {
-            console.log("Success! Card updated natively.");
+            // console.log("Success! Card updated natively.");
             // This request  is no longer "pending your approval" — replace
             // the action buttons with a small status pill and stop the row
             // from navigating to the card on click.
@@ -282,7 +282,7 @@
             t.sizeTo("body").catch(function () {});
           })
           .catch(function (err) {
-            console.error("Easy Approve: failed to update request", err);
+            // console.error("Easy Approve: failed to update request", err);
           });
       }
 
@@ -316,7 +316,7 @@
             })
             .then(renderRequestsList)
             .catch(function (err) {
-              console.error("Failed loading requests", err);
+              // console.error("Failed loading requests", err);
               renderRequestsList([]);
             });
         });

@@ -407,7 +407,7 @@
             t.sizeTo("body").catch(function () {});
           })
           .catch(function (err) {
-            console.error("Easy Approve: failed to update request", err);
+            // console.error("Easy Approve: failed to update request", err);
             Array.prototype.forEach.call(buttons, function (b) {
               b.disabled = false;
             });
@@ -441,7 +441,7 @@
           })
           .then(renderRequestsList)
           .catch(function (err) {
-            console.error("Easy Approve: loading pending requests failed", err);
+            // console.error("Easy Approve: loading pending requests failed", err);
             renderRequestsList([]);
           });
       }

@@ -260,7 +260,7 @@
                     return ApprovalsShared.fetchCardRequest(t).then(render);
                   })
                   .catch(function (err) {
-                    console.error("Decline popup failed:", err);
+                    // console.error("Decline popup failed:", err);
                   });
               } else {
                 respondToRequest(request, id, action);

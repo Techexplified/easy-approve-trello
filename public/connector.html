@@ -120,7 +120,7 @@
                   });
                 })
                 .catch(function (err) {
-                  console.error("Easy Approve: badge count failed", err);
+                  // console.error("Easy Approve: badge count failed", err);
                   return buildButton(ICON_WHITE, ICON_BLACK);
                 });
             })
@@ -131,7 +131,7 @@
               // no catch on this outer chain, so a rejection here meant
               // board-buttons resolved to nothing and the toolbar button
               // simply never appeared — with no error visible to the user.
-              console.error("Easy Approve: board-buttons failed", err);
+              // console.error("Easy Approve: board-buttons failed", err);
               return buildButton(ICON_WHITE, ICON_BLACK);
             });
         },
@@ -235,7 +235,7 @@
           return ApprovalsShared.fetchCardRequest(t).then(function (request) {
             // No request on this card — don't show the section at all
             if (!request) {
-              return t.NotHandled();
+              throw t.NotHandled();
             }
 
             return {
