@@ -33,21 +33,93 @@
       var PLUGIN_ID = "6a468ccfcafdf3b68af7fa8f";
 
       // ---------------------------------------------------------------
-      // Note on badge icons:
+      // Why board-buttons was timing out (IFrameIO "Elapsed=10002"):
       //
-      // ApprovalsShared.iconWithBadge() builds a composite SVG (base icon
-      // + red count circle). It receives the base icon already inlined as
-      // a data: URI (via ApprovalsShared.iconAsDataUri()) before it's ever
-      // passed in, so the composite SVG's <image href="..."> always points
-      // at a data: URI, never an external URL. There's nothing further to
-      // pre-fetch here — a previous attempt to "fix" broken badge icons by
-      // pre-fetching raw icon markup (iconInnerPromise/fetchIconInner) was
-      // dead code: it computed values that were never actually used, and
-      // it added two extra external network round-trips that every
-      // board-buttons call had to wait on before a button could render at
-      // all. That extra, unused latency is the most likely reason the
-      // toolbar button intermittently failed to show up. Removed.
+      // Trello enforces a hard timeout on every capability handler. Our
+      // board-buttons handler was doing, from scratch, on EVERY call
+      // (and Trello calls board-buttons very often — on basically any
+      // board update):
+      //   1. A full /cards?pluginData=true fetch against the Trello API
+      //      (expensive on non-trivial boards, since it returns every
+      //      plugin's data for every card).
+      //   2. Two more cross-origin fetches to re-download + re-encode the
+      //      badge icon SVGs as data URIs, every single time.
+      //   3. No timeout on any of the above — if the Trello API or our
+      //      icon host is slow, the promise just sits there past
+      //      Trello's own SLA for the capability, even though our
+      //      .catch() blocks were technically correct and would have
+      //      recovered *eventually*.
+      //
+      // Fix: cache the icon data URIs once (they never change) and cache
+      // the pending count for a short TTL, and give our own fetches an
+      // explicit timeout so we always resolve well under Trello's limit
+      // instead of relying on Trello to kill us first.
       // ---------------------------------------------------------------
+      var ICON_CACHE = { white: null, black: null }; // data-URI cache, fetched once
+      var COUNT_CACHE = { count: 0, boardId: null, fetchedAt: 0 };
+      var COUNT_TTL_MS = 20000; // don't re-hit the cards API more than every 20s
+      var FETCH_TIMEOUT_MS = 6000; // force a fallback well before Trello's ~10s SLA
+
+      function fetchWithTimeout(url, options, timeoutMs) {
+        var controller = new AbortController();
+        var timer = setTimeout(function () {
+          controller.abort();
+        }, timeoutMs);
+
+        return fetch(
+          url,
+          Object.assign({}, options, { signal: controller.signal }),
+        ).finally(function () {
+          clearTimeout(timer);
+        });
+      }
+
+      function getCachedIcons() {
+        if (ICON_CACHE.white && ICON_CACHE.black) {
+          return Promise.resolve(ICON_CACHE);
+        }
+        return Promise.all([
+          ApprovalsShared.iconAsDataUri(ICON_WHITE),
+          ApprovalsShared.iconAsDataUri(ICON_BLACK),
+        ]).then(function (dataUris) {
+          ICON_CACHE.white = dataUris[0];
+          ICON_CACHE.black = dataUris[1];
+          return ICON_CACHE;
+        });
+      }
+
+      function getPendingCount(boardId, memberId, token) {
+        var now = Date.now();
+        if (
+          COUNT_CACHE.boardId === boardId &&
+          now - COUNT_CACHE.fetchedAt < COUNT_TTL_MS
+        ) {
+          return Promise.resolve(COUNT_CACHE.count);
+        }
+
+        var url =
+          "https://api.trello.com/1/boards/" +
+          boardId +
+          "/cards?pluginData=true&fields=id&key=" +
+          API_KEY +
+          "&token=" +
+          encodeURIComponent(token);
+
+        return fetchWithTimeout(url, {}, FETCH_TIMEOUT_MS)
+          .then(function (res) {
+            if (!res.ok) throw new Error("Failed to fetch board cards");
+            return res.json();
+          })
+          .then(function (cards) {
+            var count = ApprovalsShared.countPendingForMember(
+              cards,
+              memberId,
+              PLUGIN_ID,
+            );
+            COUNT_CACHE = { count: count, boardId: boardId, fetchedAt: now };
+            return count;
+          });
+      }
 
       window.TrelloPowerUp.initialize({
         "board-buttons": function (t, opts) {
@@ -68,7 +140,7 @@
             ];
           }
 
-          return Promise.all([
+          var work = Promise.all([
             t.board("id"),
             t.member("id"),
             t.get("member", "private", "token"),
@@ -83,39 +155,18 @@
                 return buildButton(ICON_WHITE, ICON_BLACK);
               }
 
-              var url =
-                "https://api.trello.com/1/boards/" +
-                boardId +
-                "/cards?pluginData=true&fields=id&key=" +
-                API_KEY +
-                "&token=" +
-                encodeURIComponent(token);
-
-              return fetch(url)
-                .then(function (res) {
-                  if (!res.ok) throw new Error("Failed to fetch board cards");
-                  return res.json();
-                })
-                .then(function (cards) {
-                  var count = ApprovalsShared.countPendingForMember(
-                    cards,
-                    memberId,
-                    PLUGIN_ID,
-                  );
-
+              return getPendingCount(boardId, memberId, token)
+                .then(function (count) {
                   if (!count) {
                     return buildButton(ICON_WHITE, ICON_BLACK);
                   }
 
-                  // Only inline the icon (fetch + data URI) when we actually
-                  // need to draw a badge on top of it.
-                  return Promise.all([
-                    ApprovalsShared.iconAsDataUri(ICON_WHITE),
-                    ApprovalsShared.iconAsDataUri(ICON_BLACK),
-                  ]).then(function (dataUris) {
+                  // Icons are fetched+encoded once and reused after that,
+                  // instead of two fresh cross-origin fetches every call.
+                  return getCachedIcons().then(function (icons) {
                     return buildButton(
-                      ApprovalsShared.iconWithBadge(dataUris[0], count),
-                      ApprovalsShared.iconWithBadge(dataUris[1], count),
+                      ApprovalsShared.iconWithBadge(icons.white, count),
+                      ApprovalsShared.iconWithBadge(icons.black, count),
                     );
                   });
                 })
@@ -127,13 +178,27 @@
             .catch(function (err) {
               // Belt-and-suspenders: if t.board()/t.member()/t.get() ever
               // reject (e.g. a brand-new member/board with no plugin data
-              // yet), we must still return a button. Previously there was
-              // no catch on this outer chain, so a rejection here meant
-              // board-buttons resolved to nothing and the toolbar button
-              // simply never appeared — with no error visible to the user.
+              // yet), we must still return a button.
               // console.error("Easy Approve: board-buttons failed", err);
               return buildButton(ICON_WHITE, ICON_BLACK);
             });
+
+          // Final safety net: no matter what the chain above does, never
+          // let board-buttons run past Trello's own capability timeout.
+          // If anything is still pending after FETCH_TIMEOUT_MS, resolve
+          // with the plain icon immediately so Trello never has to kill
+          // us — a stale/plain button beats a hung, timed-out call.
+          var fallbackTimer;
+          var timeoutFallback = new Promise(function (resolve) {
+            fallbackTimer = setTimeout(function () {
+              resolve(buildButton(ICON_WHITE, ICON_BLACK));
+            }, FETCH_TIMEOUT_MS + 1000);
+          });
+
+          return Promise.race([work, timeoutFallback]).then(function (result) {
+            clearTimeout(fallbackTimer);
+            return result;
+          });
         },
 
         "card-detail-badges": function (t, opts) {
